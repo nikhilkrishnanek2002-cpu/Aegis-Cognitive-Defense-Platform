@@ -48,9 +48,7 @@ cfg = get_config()
 init_logging(cfg)
 _startup = run_startup_checks()
 
-cfg = get_config()
-init_logging(cfg)
-_startup = run_startup_checks()
+
 
 # ===============================
 # STREAMLIT CONFIG (FIRST CALL)
@@ -231,57 +229,62 @@ radar_model, device = load_model()
 # AUTHENTICATION CONTROL FLOW
 # ===============================
 if not st.session_state.logged_in:
-    st.markdown('<div class="auth-container">', unsafe_allow_html=True)
-    
-    if st.session_state.auth_mode == "login":
-        st.markdown('<h1 class="auth-title">🔐 SECURITY CLEARANCE</h1>', unsafe_allow_html=True)
-        with st.form("login"):
-            username = st.text_input("Operator ID")
-            password = st.text_input("Access Code", type="password")
-            if st.form_submit_button("AUTHORIZE"):
-                ok, role = authenticate(username, password)
-                if ok:
-                    st.session_state.logged_in = True
-                    st.session_state.user = username
-                    st.session_state.role = role
-                    st.success("✅ AUTHORIZED. ACCESS GRANTED.")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("❌ AUTHORIZATION DENIED")
+    login_placeholder = st.empty()
+    with login_placeholder.container():
+        st.markdown('<div class="auth-container">', unsafe_allow_html=True)
         
-        if st.button("New Operator? Register Here"):
-            st.session_state.auth_mode = "register"
-            st.rerun()
-
-    else:
-        st.markdown('<h1 class="auth-title">📝 OPERATOR REGISTRATION</h1>', unsafe_allow_html=True)
-        from src.auth import register_user
-        with st.form("register"):
-            new_user = st.text_input("Choose Operator ID")
-            new_pass = st.text_input("Set Access Code", type="password")
-            confirm_pass = st.text_input("Confirm Access Code", type="password")
-            role = st.selectbox("Assigned Role", ["viewer", "analyst"])
-            
-            if st.form_submit_button("REGISTER"):
-                if not new_user or not new_pass:
-                    st.error("Fields cannot be empty")
-                elif new_pass != confirm_pass:
-                    st.error("Passwords do not match")
-                else:
-                    success, msg = register_user(new_user, new_pass, role)
-                    if success:
-                        st.success("✅ Registration Successful. Please login.")
-                        st.session_state.auth_mode = "login"
-                        # No st.rerun here to let user see success message
+        if st.session_state.auth_mode == "login":
+            st.markdown('<h1 class="auth-title">🔐 SECURITY CLEARANCE</h1>', unsafe_allow_html=True)
+            with st.form("login"):
+                username = st.text_input("Operator ID")
+                password = st.text_input("Access Code", type="password")
+                if st.form_submit_button("AUTHORIZE"):
+                    ok, role = authenticate(username, password)
+                    if ok:
+                        st.session_state.logged_in = True
+                        st.session_state.user = username
+                        st.session_state.role = role
+                        st.success("✅ AUTHORIZED. ACCESS GRANTED.")
+                        time.sleep(1)
+                        # Clear the placeholder before rerunning to ensure it's gone
+                        login_placeholder.empty()
+                        st.rerun()
                     else:
-                        st.error(f"❌ {msg}")
-        
-        if st.button("Back to Login"):
-            st.session_state.auth_mode = "login"
-            st.rerun()
+                        st.error("❌ AUTHORIZATION DENIED")
+            
+            if st.button("New Operator? Register Here"):
+                st.session_state.auth_mode = "register"
+                st.rerun()
 
-    st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<h1 class="auth-title">📝 OPERATOR REGISTRATION</h1>', unsafe_allow_html=True)
+            from src.auth import register_user
+            with st.form("register"):
+                new_user = st.text_input("Choose Operator ID")
+                new_pass = st.text_input("Set Access Code", type="password")
+                confirm_pass = st.text_input("Confirm Access Code", type="password")
+                role = st.selectbox("Assigned Role", ["viewer", "analyst"])
+                
+                if st.form_submit_button("REGISTER"):
+                    if not new_user or not new_pass:
+                        st.error("Fields cannot be empty")
+                    elif new_pass != confirm_pass:
+                        st.error("Passwords do not match")
+                    else:
+                        success, msg = register_user(new_user, new_pass, role)
+                        if success:
+                            st.success("✅ Registration Successful. Please login.")
+                            st.session_state.auth_mode = "login"
+                            # No st.rerun here to let user see success message
+                        else:
+                            st.error(f"❌ {msg}")
+            
+            if st.button("Back to Login"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
+
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()
     st.stop()
 
 # ===============================
@@ -327,7 +330,7 @@ target_low = target.lower()
 if source == "RTL-SDR":
     from src.rtl_sdr_receiver import HAS_RTLSDR
     if not HAS_RTLSDR:
-        st.error("RTL-SDR Library (librtlsdr) not found. Falling back to simulation.")
+        st.warning("⚠️  RTL-SDR Library (librtlsdr) not found. Falling back to simulation.")
         signal = generate_radar_signal(target_low, distance)
     else:
         try:
@@ -342,164 +345,161 @@ else:
 
     signal *= 10 ** (gain / 20)
 
-    # Run classical detection chain and only run AI if CFAR finds detections
-    detect_res = detect_targets_from_raw(signal, fs=4096, n_range=128, n_doppler=128, method='ca', guard=2, train=8, pfa=1e-6)
-    rd_map = detect_res['rd_map']
-    spec, meta, photonic = None, None, None
+# Run classical detection chain and only run AI if CFAR finds detections
+detect_res = detect_targets_from_raw(signal, fs=4096, n_range=128, n_doppler=128, method='ca', guard=2, train=8, pfa=1e-6)
+rd_map = detect_res['rd_map']
+rd_map, spec, meta, photonic = get_all_features(signal)
 
-    # Always compute features for UI / photonic params
-    rd_map, spec, meta, photonic = get_all_features(signal)
+detections = detect_res.get('detections', [])
+ai_results = []
+IMG_SIZE = 128
+det_cfg = cfg.get('detection', {})
+crop_size = int(det_cfg.get('crop_size', 32))
 
-    detections = detect_res.get('detections', [])
-    ai_results = []
-    IMG_SIZE = 128
-    det_cfg = cfg.get('detection', {})
-    crop_size = int(det_cfg.get('crop_size', 32))
+if len(detections) > 0:
+    log_event(f"Processing {len(detections)} CFAR detections in AI pipeline", level="info")
+    # ensure spectrogram aligns with rd_map dimensions for cropping
+    try:
+        spec_resized_full = cv2.resize(spec, (rd_map.shape[1], rd_map.shape[0]))
+    except Exception:
+        spec_resized_full = np.abs(spec)
 
-    if len(detections) > 0:
-        log_event(f"Processing {len(detections)} CFAR detections in AI pipeline", level="info")
-        # ensure spectrogram aligns with rd_map dimensions for cropping
-        try:
-            spec_resized_full = cv2.resize(spec, (rd_map.shape[1], rd_map.shape[0]))
-        except Exception:
-            spec_resized_full = np.abs(spec)
+    half = crop_size // 2
+    for det in detections:
+        i, j, val = det
+        i = int(i); j = int(j)
 
-        half = crop_size // 2
-        for det in detections:
-            i, j, val = det
-            i = int(i); j = int(j)
-
-            # pad rd_map and spec if crop goes out of bounds
-            pad_y = max(0, half - i, (i + half) - rd_map.shape[0] + 1)
-            pad_x = max(0, half - j, (j + half) - rd_map.shape[1] + 1)
-            if pad_x > 0 or pad_y > 0:
-                rd_pad = np.pad(rd_map, ((pad_y, pad_y), (pad_x, pad_x)), mode='constant')
-                spec_pad = np.pad(spec_resized_full, ((pad_y, pad_y), (pad_x, pad_x)), mode='constant')
-                i += pad_y
-                j += pad_x
-            else:
-                rd_pad = rd_map
-                spec_pad = spec_resized_full
-
-            y1 = i - half; y2 = i + half
-            x1 = j - half; x2 = j + half
-            rd_crop = rd_pad[y1:y2, x1:x2]
-            spec_crop = spec_pad[y1:y2, x1:x2]
-
-            # Resize to model input
-            rd_img = cv2.resize(rd_crop.astype(np.float32), (IMG_SIZE, IMG_SIZE))
-            spec_img = cv2.resize(spec_crop.astype(np.float32), (IMG_SIZE, IMG_SIZE))
-
-            # Normalize
-            rd_norm_local = (rd_img - np.mean(rd_img)) / (np.std(rd_img) + 1e-8)
-            spec_norm_local = (spec_img - np.mean(spec_img)) / (np.std(spec_img) + 1e-8)
-
-            rd_t_local = torch.from_numpy(rd_norm_local).float().unsqueeze(0).unsqueeze(0).to(device)
-            spec_t_local = torch.from_numpy(spec_norm_local).float().unsqueeze(0).unsqueeze(0).to(device)
-            meta_t_local = torch.from_numpy(meta).float().unsqueeze(0).to(device)
-
-            with torch.no_grad():
-                out = radar_model(rd_t_local, spec_t_local, meta_t_local)
-                ps = torch.softmax(out, dim=1)
-                conf, idx = float(torch.max(ps)), int(torch.argmax(ps))
-                label = LABELS[idx] if idx < len(LABELS) else 'Clutter'
-                ai_results.append({"det": (i, j), "label": label, "confidence": conf, "value": val})
-
-        # choose highest-confidence detection for top-level UI
-        best = max(ai_results, key=lambda x: x['confidence']) if ai_results else None
-        if best is not None:
-            detected = best['label']
-            confidence = best['confidence']
+        # pad rd_map and spec if crop goes out of bounds
+        pad_y = max(0, half - i, (i + half) - rd_map.shape[0] + 1)
+        pad_x = max(0, half - j, (j + half) - rd_map.shape[1] + 1)
+        if pad_x > 0 or pad_y > 0:
+            rd_pad = np.pad(rd_map, ((pad_y, pad_y), (pad_x, pad_x)), mode='constant')
+            spec_pad = np.pad(spec_resized_full, ((pad_y, pad_y), (pad_x, pad_x)), mode='constant')
+            i += pad_y
+            j += pad_x
         else:
-            detected = "Clutter"
-            confidence = 0.0
+            rd_pad = rd_map
+            spec_pad = spec_resized_full
 
+        y1 = i - half; y2 = i + half
+        x1 = j - half; x2 = j + half
+        rd_crop = rd_pad[y1:y2, x1:x2]
+        spec_crop = spec_pad[y1:y2, x1:x2]
+
+        # Resize to model input
+        rd_img = cv2.resize(rd_crop.astype(np.float32), (IMG_SIZE, IMG_SIZE))
+        spec_img = cv2.resize(spec_crop.astype(np.float32), (IMG_SIZE, IMG_SIZE))
+
+        # Normalize
+        rd_norm_local = (rd_img - np.mean(rd_img)) / (np.std(rd_img) + 1e-8)
+        spec_norm_local = (spec_img - np.mean(spec_img)) / (np.std(spec_img) + 1e-8)
+
+        rd_t_local = torch.from_numpy(rd_norm_local).float().unsqueeze(0).unsqueeze(0).to(device)
+        spec_t_local = torch.from_numpy(spec_norm_local).float().unsqueeze(0).unsqueeze(0).to(device)
+        meta_t_local = torch.from_numpy(meta).float().unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            out = radar_model(rd_t_local, spec_t_local, meta_t_local)
+            ps = torch.softmax(out, dim=1)
+            conf, idx = float(torch.max(ps)), int(torch.argmax(ps))
+            label = LABELS[idx] if idx < len(LABELS) else 'Clutter'
+            ai_results.append({"det": (i, j), "label": label, "confidence": conf, "value": val})
+
+    # choose highest-confidence detection for top-level UI
+    best = max(ai_results, key=lambda x: x['confidence']) if ai_results else None
+    if best is not None:
+        detected = best['label']
+        confidence = best['confidence']
     else:
-        log_event("No CFAR detections found; skipping AI inference", level="info")
         detected = "Clutter"
         confidence = 0.0
 
-    # ===== MULTI-TARGET TRACKING =====
-    if st.session_state.tracker_enabled:
-        # Convert AI results to tracker detections: (range_idx, doppler_idx, value)
-        tracker_detections = [(res['det'][0], res['det'][1], res['confidence']) for res in ai_results]
-        
-        # Update multi-target tracker
-        active_tracks = st.session_state.tracker.update(tracker_detections)
-        
-        if active_tracks:
-            log_event(f"Tracking: {len(active_tracks)} active targets", level="info")
-        
-        # Store track history for UI
-        if not hasattr(st.session_state, 'track_history'):
-            st.session_state.track_history = []
-        st.session_state.track_history.append({
-            'time': time.time(),
-            'tracks': active_tracks,
-            'detected': detected,
-            'confidence': confidence
-        })
-        # Keep last 100 updates
-        st.session_state.track_history = st.session_state.track_history[-100:]
-    else:
-        active_tracks = {}
+else:
+    log_event("No CFAR detections found; skipping AI inference", level="info")
+    detected = "Clutter"
+    confidence = 0.0
 
-    # ===== ELECTRONIC WARFARE DEFENSE =====
-    if st.session_state.ew_enabled:
-        ai_labels = [res['label'] for res in ai_results]
-        ai_confidences = [res['confidence'] for res in ai_results]
-        
-        ew_result = st.session_state.ew_defense.analyze(
-            signal=signal,
-            detections=detections,
-            ai_labels=ai_labels,
-            ai_confidences=ai_confidences
-        )
-        
-        if ew_result['ew_active']:
-            log_event(f"EW ALERT: Threat level {ew_result['threat_level']}, {len(ew_result['threats'])} threats detected", level="warning")
-            for threat in ew_result['threats']:
-                log_event(f"  - {threat.threat_type}: conf={threat.confidence:.2f}, sev={threat.severity}", level="warning")
-            for cm in ew_result['countermeasures']:
-                log_event(f"  ⚡ Countermeasure: {cm.action_type} ({cm.reason})", level="info")
-        
-        # Filter detections: only keep real detections
-        if ew_result['real_detections']:
-            ai_results_filtered = [res for res, is_real in zip(ai_results, ew_result['real_detections']) if is_real]
-        else:
-            ai_results_filtered = ai_results
+# ===== MULTI-TARGET TRACKING =====
+if st.session_state.tracker_enabled:
+    # Convert AI results to tracker detections: (range_idx, doppler_idx, value)
+    tracker_detections = [(res['det'][0], res['det'][1], res['confidence']) for res in ai_results]
+    
+    # Update multi-target tracker
+    active_tracks = st.session_state.tracker.update(tracker_detections)
+    
+    if active_tracks:
+        log_event(f"Tracking: {len(active_tracks)} active targets", level="info")
+    
+    # Store track history for UI
+    if not hasattr(st.session_state, 'track_history'):
+        st.session_state.track_history = []
+    st.session_state.track_history.append({
+        'time': time.time(),
+        'tracks': active_tracks,
+        'detected': detected,
+        'confidence': confidence
+    })
+    # Keep last 100 updates
+    st.session_state.track_history = st.session_state.track_history[-100:]
+else:
+    active_tracks = {}
+
+# ===== ELECTRONIC WARFARE DEFENSE =====
+if st.session_state.ew_enabled:
+    ai_labels = [res['label'] for res in ai_results]
+    ai_confidences = [res['confidence'] for res in ai_results]
+    
+    ew_result = st.session_state.ew_defense.analyze(
+        signal=signal,
+        detections=detections,
+        ai_labels=ai_labels,
+        ai_confidences=ai_confidences
+    )
+    
+    if ew_result['ew_active']:
+        log_event(f"EW ALERT: Threat level {ew_result['threat_level']}, {len(ew_result['threats'])} threats detected", level="warning")
+        for threat in ew_result['threats']:
+            log_event(f"  - {threat.threat_type}: conf={threat.confidence:.2f}, sev={threat.severity}", level="warning")
+        for cm in ew_result['countermeasures']:
+            log_event(f"  ⚡ Countermeasure: {cm.action_type} ({cm.reason})", level="info")
+    
+    # Filter detections: only keep real detections
+    if ew_result['real_detections']:
+        ai_results_filtered = [res for res, is_real in zip(ai_results, ew_result['real_detections']) if is_real]
     else:
-        ew_result = {'threats': [], 'ew_active': False, 'threat_level': 'green', 'real_detections': None}
         ai_results_filtered = ai_results
+else:
+    ew_result = {'threats': [], 'ew_active': False, 'threat_level': 'green', 'real_detections': None}
+    ai_results_filtered = ai_results
 
-    # ===== COGNITIVE CONTROL ADAPTATION =====
-    if st.session_state.controller_enabled:
-        # Compute confidence metrics (use filtered detections if EW active)
-        det_results = ai_results_filtered if st.session_state.ew_enabled and ew_result['real_detections'] else ai_results
-        avg_det_conf = np.mean([res['confidence'] for res in det_results]) if det_results else 0.0
-        avg_trk_conf = np.mean([t['confidence'] for t in active_tracks.values()]) if active_tracks else 0.0
-        num_tracks = len([t for t in active_tracks.values() if t['state'] == 'confirmed'])
-        false_positives = len(detections) - len(det_results) if len(detections) > len(det_results) else 0
-        
-        # Observe state
-        curr_state = st.session_state.cognitive_controller.observe(
-            detection_confidence=avg_det_conf,
-            tracking_confidence=avg_trk_conf,
-            num_active_tracks=num_tracks,
-            total_detections=len(detections),
-            false_positives=false_positives,
-            current_gain=gain,
-            max_gain=40.0
-        )
-        
-        # Learn from previous observation
-        reward = st.session_state.cognitive_controller.learn(curr_state)
-        
-        # Decide next action (waveform parameters)
-        cognitive_action = st.session_state.cognitive_controller.decide(curr_state)
-        
-        # Apply cognitive action if not in manual override
-        if cognitive_action.is_adaptive:
+# ===== COGNITIVE CONTROL ADAPTATION =====
+if st.session_state.controller_enabled:
+    # Compute confidence metrics (use filtered detections if EW active)
+    det_results = ai_results_filtered if st.session_state.ew_enabled and ew_result['real_detections'] else ai_results
+    avg_det_conf = np.mean([res['confidence'] for res in det_results]) if det_results else 0.0
+    avg_trk_conf = np.mean([t['confidence'] for t in active_tracks.values()]) if active_tracks else 0.0
+    num_tracks = len([t for t in active_tracks.values() if t['state'] == 'confirmed'])
+    false_positives = len(detections) - len(det_results) if len(detections) > len(det_results) else 0
+    
+    # Observe state
+    curr_state = st.session_state.cognitive_controller.observe(
+        detection_confidence=avg_det_conf,
+        tracking_confidence=avg_trk_conf,
+        num_active_tracks=num_tracks,
+        total_detections=len(detections),
+        false_positives=false_positives,
+        current_gain=gain,
+        max_gain=40.0
+    )
+    
+    # Learn from previous observation
+    reward = st.session_state.cognitive_controller.learn(curr_state)
+    
+    # Decide next action (waveform parameters)
+    cognitive_action = st.session_state.cognitive_controller.decide(curr_state)
+    
+    # Apply cognitive action if not in manual override
+    if cognitive_action.is_adaptive:
             gain = cognitive_action.gain_db
             distance = cognitive_action.distance_m
             target = cognitive_action.target_type

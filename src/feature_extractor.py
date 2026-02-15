@@ -23,7 +23,7 @@ def extract_micro_doppler(signal, fs=4096, nperseg=256):
     """
     Computes Micro-Doppler spectrogram using STFT.
     """
-    f, t, Zxx = stft(signal, fs=fs, nperseg=nperseg)
+    f, t, Zxx = stft(signal, fs=fs, nperseg=nperseg, return_onesided=False)
     return np.abs(Zxx)
 
 def extract_phase_statistics(signal):

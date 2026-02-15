@@ -64,7 +64,8 @@ class NoiseJammingDetector:
         """
         try:
             # Compute spectrogram
-            f, t, Sxx = spectrogram(signal, fs=fs, nperseg=256)
+            # stft returns one-sided by default for real inputs, but we might have complex
+            f, t, Sxx = spectrogram(signal, fs=fs, nperseg=256, return_onesided=not np.iscomplexobj(signal))
             
             # Signal power in central band (strongest component)
             signal_band_idx = np.argsort(np.mean(Sxx, axis=1))[-5:]  # top 5 frequencies
@@ -284,7 +285,7 @@ class FrequencyHopper:
             base_freq_hz: base carrier frequency (Hz)
             hop_set_size: number of frequencies to hop across
         """
-        self.base_freq_hz = base_freq_hz
+        self.base_freq_hz = float(base_freq_hz)
         self.hop_set_size = hop_set_size
         self.freq_offset_step = 50e6  # 50 MHz steps
         self.current_hop_index = 0

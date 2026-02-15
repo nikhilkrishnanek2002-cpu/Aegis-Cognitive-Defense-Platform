@@ -11,7 +11,7 @@ import pytest
 import tempfile
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from src.security_core import (
@@ -138,7 +138,6 @@ class TestRBACSystem:
         rbac.check_permission(context, Permission.VIEW_ANALYTICS, "test_resource")
         
         # Verify audit log entry
-        assert len(rbac.audit_log) > 0
         event = rbac.audit_log[0]
         assert event.username == "analyst1"
         assert "view_analytics" in event.action.lower()
@@ -584,7 +583,7 @@ class TestCommandNode:
             status=NodeStatus.ONLINE,
             hostname="localhost",
             port=5000,
-            last_heartbeat=datetime.utcnow(),
+            last_heartbeat=datetime.now(timezone.utc),
         )
         
         cmd.register_edge_node(edge_info)

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from collections import defaultdict
 import json
 import os
+import ast
 
 
 @dataclass
@@ -257,7 +258,7 @@ class QLearningController:
             policy_data = json.load(f)
         self.Q = defaultdict(lambda: np.zeros(24))
         for k_str, v in policy_data['Q'].items():
-            k = eval(k_str)  # Convert string back to tuple
+            k = ast.literal_eval(k_str)  # Convert string back to tuple
             self.Q[k] = np.array(v)
         self.step_count = policy_data.get('step_count', 0)
         self.epsilon = policy_data.get('epsilon', self.epsilon)

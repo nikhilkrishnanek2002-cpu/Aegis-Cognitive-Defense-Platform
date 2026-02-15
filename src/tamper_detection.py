@@ -19,7 +19,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Tuple, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
 from enum import Enum
 
@@ -41,7 +41,7 @@ class FileChecksum:
     sha256: str
     md5: str
     filesize: int
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     def to_dict(self) -> Dict:
         return {
@@ -59,7 +59,7 @@ class TamperEvent:
     severity: TamperSeverity
     filepath: str
     reason: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     old_checksum: Optional[str] = None
     new_checksum: Optional[str] = None
     resolved: bool = False

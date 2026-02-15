@@ -22,7 +22,7 @@ import socket
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import threading
 import hashlib
 import hmac
@@ -85,13 +85,13 @@ class NodeInfo:
     hostname: str
     port: int
     last_heartbeat: datetime
-    last_update: datetime = field(default_factory=datetime.utcnow)
+    last_update: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     capabilities: Dict[str, Any] = field(default_factory=dict)
     version: str = "1.0"
     
     def is_healthy(self, timeout_s: int = 120) -> bool:
         """Check if node is healthy (recent heartbeat)."""
-        elapsed = (datetime.utcnow() - self.last_heartbeat).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - self.last_heartbeat).total_seconds()
         return elapsed < timeout_s and self.status != NodeStatus.OFFLINE
 
 
@@ -102,7 +102,7 @@ class Message:
     recipient_id: str
     message_type: str  # "command", "response", "heartbeat", "alert", "status"
     payload: Dict[str, Any]
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     message_id: str = ""
     signature: str = ""
     
@@ -193,7 +193,7 @@ class EdgeNode:
         self.inferences_run = 0
         self.detections_logged = 0
         self.heartbeats_sent = 0
-        self.startup_time = datetime.utcnow()
+        self.startup_time = datetime.now(timezone.utc)
         
         logger.info(f"EdgeNode {config.node_id} initialized")
     
@@ -224,7 +224,7 @@ class EdgeNode:
         # Placeholder: real implementation would run ML model
         result = {
             "inferences_run": self.inferences_run,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "detections": [],
         }
         
@@ -236,7 +236,7 @@ class EdgeNode:
         with self.lock:
             self.local_detections.append({
                 "detection": detection,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             })
             self.detections_logged += 1
             
@@ -250,7 +250,7 @@ class EdgeNode:
             return {
                 "node_id": self.node_id,
                 "status": self.status.value,
-                "uptime_seconds": (datetime.utcnow() - self.startup_time).total_seconds(),
+                "uptime_seconds": (datetime.now(timezone.utc) - self.startup_time).total_seconds(),
                 "inferences_run": self.inferences_run,
                 "detections_logged": self.detections_logged,
                 "heartbeats_sent": self.heartbeats_sent,
@@ -302,7 +302,7 @@ class CommandNode:
         
         # Connected nodes
         self.connected_edges: Dict[str, NodeInfo] = {}
-        self.last_command_update = datetime.utcnow()
+        self.last_command_update = datetime.now(timezone.utc)
         
         # Aggregated state
         self.aggregated_detections = []
@@ -313,7 +313,7 @@ class CommandNode:
         # Statistics
         self.commands_issued = 0
         self.heartbeats_received = 0
-        self.startup_time = datetime.utcnow()
+        self.startup_time = datetime.now(timezone.utc)
         
         logger.info(f"CommandNode {config.node_id} initialized")
     
@@ -349,7 +349,7 @@ class CommandNode:
         
         with self.lock:
             if edge_id in self.connected_edges:
-                self.connected_edges[edge_id].last_heartbeat = datetime.utcnow()
+                self.connected_edges[edge_id].last_heartbeat = datetime.now(timezone.utc)
                 self.heartbeats_received += 1
             
             # Check for failures (fail-safe: alert if node has many detections)
@@ -390,7 +390,7 @@ class CommandNode:
             self.aggregated_detections.append({
                 "detection": detection,
                 "source": source_node,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             })
             
             # Trim buffer
@@ -408,7 +408,7 @@ class CommandNode:
             return {
                 "command_node": self.node_id,
                 "status": self.status.value,
-                "uptime_seconds": (datetime.utcnow() - self.startup_time).total_seconds(),
+                "uptime_seconds": (datetime.now(timezone.utc) - self.startup_time).total_seconds(),
                 "connected_edge_nodes": len(self.connected_edges),
                 "healthy_edge_nodes": healthy_edges,
                 "commands_issued": self.commands_issued,
@@ -433,7 +433,7 @@ class CommandNode:
                     self.critical_alerts.append({
                         "severity": "critical",
                         "message": f"Edge node {node_id} unhealthy",
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
                 
                 health[node_id] = (is_healthy, status_msg)
@@ -525,7 +525,7 @@ class DeploymentOrchestrator:
             }
         
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "edge_nodes": edge_states,
             "command_nodes": command_states,
             "message_queue_size": len(self.message_queue),

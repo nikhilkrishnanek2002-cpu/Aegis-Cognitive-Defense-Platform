@@ -15,7 +15,7 @@ import logging
 from enum import Enum
 from typing import Dict, List, Set, Tuple, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class AccessContext:
     username: str
     session_id: str
     ip_address: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     clearance_level: int = 0  # 0=public, 1=unclass, 2=confidential, 3=secret
     
     def __repr__(self) -> str:
@@ -343,7 +343,7 @@ class RBACSystem:
     ) -> None:
         """Log security event to audit trail."""
         event = SecurityEvent(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             user_id=user_id,
             username=username,
             action=action,
