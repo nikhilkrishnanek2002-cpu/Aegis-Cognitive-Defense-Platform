@@ -549,46 +549,111 @@ with tab1:
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        # --- Interactive Plotly Range-Doppler Map ---
+        fig_rd = go.Figure(data=go.Heatmap(
+            z=10 * np.log10(rd_map + 1e-12),
+            colorscale='Viridis',
+            colorbar=dict(title='Power (dB)'),
+            hovertemplate='Range: %{y}<br>Doppler: %{x}<br>Power: %{z:.1f} dB<extra></extra>'
+        ))
+        fig_rd.update_layout(
+            title='Range-Doppler Map',
+            xaxis_title='Doppler / Velocity (bins)',
+            yaxis_title='Range (bins)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#00f0ff'),
+            margin=dict(l=40, r=40, t=40, b=40),
+            height=350
+        )
+        st.plotly_chart(fig_rd, use_container_width=True)
 
-        im1 = ax1.imshow(10 * np.log10(rd_map + 1e-12), cmap="viridis", aspect='auto')
-        ax1.set_title("Range-Doppler Map")
-        plt.colorbar(im1, ax=ax1)
-
-        im2 = ax2.imshow(10 * np.log10(spec + 1e-12), cmap="magma", aspect='auto')
-        ax2.set_title("Micro-Doppler Spectrogram")
-        plt.colorbar(im2, ax=ax2)
-
-        st.pyplot(fig)
+        # --- Interactive Plotly Micro-Doppler Spectrogram ---
+        fig_spec = go.Figure(data=go.Heatmap(
+            z=10 * np.log10(spec + 1e-12),
+            colorscale='Magma',
+            colorbar=dict(title='Power (dB)'),
+            hovertemplate='Time: %{x}<br>Freq: %{y}<br>Power: %{z:.1f} dB<extra></extra>'
+        ))
+        fig_spec.update_layout(
+            title='Micro-Doppler Spectrogram',
+            xaxis_title='Time (bins)',
+            yaxis_title='Frequency (Hz)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#00f0ff'),
+            margin=dict(l=40, r=40, t=40, b=40),
+            height=350
+        )
+        st.plotly_chart(fig_spec, use_container_width=True)
 
         # Tracking Plot (3D Upgrade)
         st.subheader("🎯 Target Tracking (Kalman Filter) — 3D View")
         if st.session_state.track_history and len(st.session_state.track_history) > 0:
-            # Extract position data from track history
-            hx, hy = [], []
+            # Organize data by track_id
+            tracks_by_id = {} # {track_id: {'x': [], 'y': [], 't': []}}
+            
+            # Start time for relative z-axis
+            start_time = st.session_state.track_history[0]['time']
+
             for entry in st.session_state.track_history:
+                t_rel = entry['time'] - start_time
                 if 'tracks' in entry and entry['tracks']:
                     for track_id, track_data in entry['tracks'].items():
                         if 'position' in track_data:
+                            if track_id not in tracks_by_id:
+                                tracks_by_id[track_id] = {'x': [], 'y': [], 't': []}
+                            
                             x, y = track_data['position']
-                            hx.append(x)
-                            hy.append(y)
+                            tracks_by_id[track_id]['x'].append(x)
+                            tracks_by_id[track_id]['y'].append(y)
+                            tracks_by_id[track_id]['t'].append(t_rel)
             
-            if hx and hy:
-                hz = list(range(len(hx)))  # simple time index for z-axis
+            if tracks_by_id:
                 fig3d = go.Figure()
-                fig3d.add_trace(go.Scatter3d(x=hx, y=hy, z=hz, mode='lines+markers',
-                                             line=dict(color='lime', width=4),
-                                             marker=dict(size=4, color='cyan')))
-                fig3d.update_layout(scene=dict(xaxis_title='X Position (m)',
-                                               yaxis_title='Y Position (m)',
-                                               zaxis_title='Time Index'),
-                                    margin=dict(l=0, r=0, t=30, b=0),
-                                    height=400, paper_bgcolor='rgba(0,0,0,0)',
-                                    font=dict(color='#00f0ff'))
+                
+                # Generate unique colors for different tracks
+                colors = ['cyan', 'lime', 'magenta', 'yellow', 'orange', 'white']
+                
+                for i, (tid, data) in enumerate(tracks_by_id.items()):
+                    color = colors[i % len(colors)]
+                    # Plot full trajectory
+                    fig3d.add_trace(go.Scatter3d(
+                        x=data['x'], y=data['y'], z=data['t'],
+                        mode='lines+markers',
+                        name=f"Track {tid[:4]}",
+                        line=dict(color=color, width=4),
+                        marker=dict(size=3, color=color)
+                    ))
+                    
+                    # Highlight latest point
+                    fig3d.add_trace(go.Scatter3d(
+                        x=[data['x'][-1]], y=[data['y'][-1]], z=[data['t'][-1]],
+                        mode='markers',
+                        name=f"Latest {tid[:4]}",
+                        marker=dict(size=6, color='white', symbol='diamond'),
+                        showlegend=False
+                    ))
+
+                fig3d.update_layout(
+                    scene=dict(
+                        xaxis_title='Range (bins)',
+                        yaxis_title='Doppler (bins)',
+                        zaxis_title='Time (s)',
+                        xaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="gray", showbackground=False),
+                        yaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="gray", showbackground=False),
+                        zaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="gray", showbackground=False),
+                    ),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#00f0ff'),
+                    margin=dict(l=0, r=0, t=30, b=0),
+                    height=400,
+                    legend=dict(x=0.7, y=0.9, bgcolor='rgba(0,0,0,0.5)')
+                )
                 st.plotly_chart(fig3d, use_container_width=True)
             else:
-                st.info("No track positions available yet.")
+                st.info("No active tracks in history.")
         else:
             st.info("No tracking history yet — generate data to populate 3D track view.")
 
@@ -690,7 +755,25 @@ with tab3:
     st.write(f"Clutter Power: {photonic['clutter_power']:.6f}")
 
     st.markdown("#### TTD Beamforming Vector")
-    st.line_chart(photonic["ttd_vector"])
+    fig_beam = go.Figure(data=go.Scatter(
+        y=photonic["ttd_vector"],
+        mode='lines+markers',
+        line=dict(color='#00f0ff', width=2),
+        marker=dict(size=6, color='#ff00ff'),
+        fill='tozeroy',
+        fillcolor='rgba(0, 240, 255, 0.1)'
+    ))
+    fig_beam.update_layout(
+        title="True Time Delay Profile",
+        xaxis_title="Antenna Element Index",
+        yaxis_title="Delay (ns)",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#00f0ff'),
+        margin=dict(l=40, r=40, t=40, b=40),
+        height=300
+    )
+    st.plotly_chart(fig_beam, use_container_width=True)
 
 # ===============================
 # TAB 4: LOGS

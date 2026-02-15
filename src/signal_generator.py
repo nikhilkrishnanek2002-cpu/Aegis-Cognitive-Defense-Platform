@@ -17,59 +17,111 @@ def generate_radar_signal(target_type, distance=100, fs=4096):
     photonic_cfg = cfg.get("photonic_model", {})
     use_photonic = photonic_cfg.get("enabled", False)
 
-    if USE_RTL_SDR:
-        return rtl.read_samples()
+    # ---- Common Target Physics (RCS & fluctuation) ----
+    # Distance attenuation path loss (1/R^4 for radar)
+    dist_jitter = distance * np.random.uniform(0.98, 1.02)
+    loss_factor = 1e4 / (dist_jitter ** 4 + 1e-12)
+    attenuation = np.sqrt(loss_factor)
 
-    # If photonic model enabled, use generate_photonic_rf for end-to-end replacement
+    # Calculate RCS fluctuation based on target type
+    if target_type == "drone":
+        rcs_fluctuation = np.random.gamma(2, 2)
+    elif target_type == "aircraft":
+        rcs_fluctuation = np.random.exponential(1)
+    elif target_type == "missile":
+        rcs_fluctuation = np.random.exponential(1)
+    elif target_type == "helicopter":
+        rcs_fluctuation = np.random.lognormal(0, 0.5)
+    elif target_type == "bird":
+        rcs_fluctuation = np.random.rayleigh(1)
+    elif target_type == "clutter":
+        rcs_fluctuation = 0.0
+        attenuation = 0.0
+    else:
+        rcs_fluctuation = 1.0
+
+    # If photonic model enabled, generate base signal from it
     if use_photonic:
-        # duration=1 second to match previous behavior where t spans 0..1
         seed = photonic_cfg.get("seed", None)
         t, signals = generate_photonic_rf(duration=1.0, fs=fs, num_channels=1, seed=seed)
-        # return single-channel complex baseband representation (real->complex)
-        out = signals[0].astype(np.complex64) + 0j
-        return out
+        # Photonic signal is the "Transmitted" signal. 
+        # We must apply target physics (reflection coeff + attenuation) to get "Received" signal.
+        # We assume the photonic generator creates a unit-amplitude carrier.
+        
+        raw_sig = signals[0].astype(np.complex64) + 0j
+        
+        # Apply target physics
+        if target_type != "clutter":
+            base_signal = raw_sig * attenuation * rcs_fluctuation
+        else:
+            base_signal = np.zeros_like(raw_sig)
 
-    # ---- existing simulated logic (MODIFIED for Photonic Research Terminology) ----
-    t = np.linspace(0, 1, fs)
-    # Add random phase and amplitude jitter to noise
-    noise_amp = np.random.uniform(0.01, 0.1)
-    noise = np.random.normal(0, noise_amp, len(t))
-    
-    # Distance attenuation with some randomness
-    dist_jitter = distance * np.random.uniform(0.95, 1.05)
-    attenuation = (100 / max(dist_jitter, 1)) ** 2
-
-    # Randomize chirp parameters slightly for each generation
-    f0_offset = np.random.uniform(-100, 100)
-    f1_offset = np.random.uniform(-200, 200)
-
-    # Photonic-assisted signal generation
-    # Simulating complex baseband representation
-    if target_type == "drone":
-        # Low RCS, oscillating micro-Doppler component
-        signal = chirp(t, 100+f0_offset, 1, 200+f1_offset) + 0.1 * np.sin(2 * np.pi * (50 + np.random.uniform(-5, 5)) * t)
-    elif target_type == "aircraft":
-        # Large RCS, stable Doppler
-        signal = chirp(t, 300+f0_offset, 1, 500+f1_offset)
-    elif target_type == "missile":
-        # High velocity, fast chirp rate
-        signal = chirp(t, 800+f0_offset, 1, 1500+f1_offset)
-    elif target_type == "helicopter":
-        # Distinct rotor-blade micro-Doppler
-        signal = chirp(t, 200+f0_offset, 1, 300+f1_offset) + 0.5 * np.sin(2 * np.pi * (120 + np.random.uniform(-10, 10)) * t)
-    elif target_type == "bird":
-        # Biological clutter, slow movement
-        signal = chirp(t, 50+f0_offset, 1, 80+f1_offset) + 0.05 * np.random.randn(len(t))
-    elif target_type == "clutter":
-        # Stochastic Clutter
-        signal = np.random.normal(0, 0.4, len(t))
     else:
-        # Fallback for any unknown types
-        signal = np.random.normal(0, 0.1, len(t))
+        # ---- Advanced Synthetic Generation ----
+        t = np.linspace(0, 1, fs)
 
-    # Convert to complex signal to represent I/Q data in photonic radar
-    complex_signal = (signal * attenuation + noise).astype(np.complex64)
-    # Add a synthetic phase component
-    complex_signal *= np.exp(1j * np.pi / 4) 
+        # Randomize chirp parameters slightly for each generation
+        f0_offset = np.random.uniform(-50, 50)
+        f1_offset = np.random.uniform(-100, 100)
+        
+        # Base Signal Generation (Modulation depends on target)
+        if target_type == "drone":
+            base_sig = chirp(t, 100+f0_offset, 1, 200+f1_offset) 
+            micro_doppler = 0.2 * np.sin(2 * np.pi * 50 * t) 
+        elif target_type == "aircraft":
+            base_sig = chirp(t, 300+f0_offset, 1, 500+f1_offset)
+            micro_doppler = 0.05 * np.sin(2 * np.pi * 10 * t)
+        elif target_type == "missile":
+            base_sig = chirp(t, 800+f0_offset, 1, 1500+f1_offset)
+            micro_doppler = 0.0 
+        elif target_type == "helicopter":
+            base_sig = chirp(t, 200+f0_offset, 1, 300+f1_offset) 
+            micro_doppler = 0.8 * np.sin(2 * np.pi * 120 * t)
+        elif target_type == "bird":
+            base_sig = chirp(t, 50+f0_offset, 1, 80+f1_offset) 
+            micro_doppler = 0.3 * np.sin(2 * np.pi * 2 * t)
+        elif target_type == "clutter":
+            base_sig = 0.0
+            micro_doppler = 0.0
+        else:
+            base_sig = np.random.normal(0, 0.1, len(t))
+            micro_doppler = 0
+
+        if target_type != "clutter":
+            # Combine Base + Micro-Doppler + Physics
+            target_signal = (base_sig + micro_doppler) * attenuation * rcs_fluctuation
+            base_signal = target_signal * np.exp(1j * np.pi / 4) # IQ conversion
+        else:
+            base_signal = np.zeros(len(t), dtype=np.complex64)
+        
+    # ==========================================
+    # COMMON ENVIRONMENTAL & CHANNEL EFFECTS
+    # ==========================================
+    # Ensure t is correct length if photonic used different implicit fs (assuming fs is strict)
+    if len(base_signal) != len(t):
+        t = np.linspace(0, 1, len(base_signal))
     
-    return complex_signal
+    # 1. Weaver-generate Clutter (Weibull Distribution)
+    # Shape parameter k < 2 gives heavy tails (spiky clutter)
+    k_weibull = 0.8 
+    scale_weibull = 0.15
+    clutter_amp = scale_weibull * np.random.weibull(k_weibull, size=len(t))
+    clutter_phase = np.random.uniform(0, 2*np.pi, len(t))
+    clutter = clutter_amp * np.exp(1j * clutter_phase)
+
+    # 2. Multipath Interference (Ground bounce)
+    # Delayed and attenuated copy of the signal
+    multipath_delay = int(fs * 0.05) # 50ms delay
+    multipath_coef = 0.3 # Reflection coefficient
+    
+    multipath_sig = np.zeros_like(base_signal)
+    if multipath_delay < len(t):
+        multipath_sig[multipath_delay:] = base_signal[:-multipath_delay] * multipath_coef
+    
+    # 3. Thermal Noise
+    thermal_noise = (np.random.normal(0, 0.01, len(t)) + 1j*np.random.normal(0, 0.01, len(t)))
+    
+    # 4. Total Signal Composition
+    total_signal = base_signal + multipath_sig + clutter + thermal_noise
+    
+    return total_signal.astype(np.complex64)
