@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+export const API_BASE = 'http://localhost:8000'
+
 const api = axios.create({ baseURL: '/api' })
 
 // Attach JWT token from localStorage to every request

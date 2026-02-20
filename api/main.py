@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import WebSocket
 
-from api.routes import auth, radar, tracks, ew, admin, metrics
+from api.routes import auth, radar, tracks, ew, admin, metrics, visualizations
 from api.websocket import ws_endpoint, radar_broadcast_loop
 from src.db import init_db, ensure_admin_exists
 from src.logger import init_logging, log_event
@@ -41,6 +41,7 @@ app.include_router(tracks.router)
 app.include_router(ew.router)
 app.include_router(admin.router)
 app.include_router(metrics.router)
+app.include_router(visualizations.router)
 
 
 # ─── WebSocket Live Stream ────────────────────────────────────────────────────
