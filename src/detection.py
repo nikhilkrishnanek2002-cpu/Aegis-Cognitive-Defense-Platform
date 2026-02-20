@@ -50,9 +50,11 @@ def ca_cfar(rd_map: np.ndarray, guard: int = 2, train: int = 8, pfa: float = 1e-
     k_full = np.ones((full_h, full_w), dtype=float)
     k_inner = np.ones((inner_h, inner_w), dtype=float)
 
-    # convolve to get sum over windows (same size as rd_map)
-    sum_full = fftconvolve(rd_map, k_full, mode="same")
-    sum_inner = fftconvolve(rd_map, k_inner, mode="same")
+    # CA-CFAR mathematical derivation assumes square-law (power) detection, not amplitude.
+    rd_power = rd_map ** 2
+
+    sum_full = fftconvolve(rd_power, k_full, mode="same")
+    sum_inner = fftconvolve(rd_power, k_inner, mode="same")
 
     num_train = full_h * full_w - inner_h * inner_w
     num_train = max(1, num_train)
@@ -69,7 +71,7 @@ def ca_cfar(rd_map: np.ndarray, guard: int = 2, train: int = 8, pfa: float = 1e-
     noise_level[noise_level <= 0] = 1e-12
 
     threshold = noise_level * alpha
-    det = rd_map > threshold
+    det = rd_power > threshold
 
     log_event(f"CA-CFAR detections: {np.count_nonzero(det)}", level="info")
     return det, float(alpha)

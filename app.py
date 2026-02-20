@@ -64,95 +64,7 @@ st.set_page_config(page_title="AI Cognitive Photonic Radar", layout="wide")
 # ===============================
 # CUSTOM CSS: COMMAND CENTER VIBE
 # ===============================
-st.markdown("""
-<style>
-    /* Command Center Theme */
-    .main {
-        background-color: #05070a;
-        color: #00f0ff;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .stApp {
-        background: radial-gradient(circle at top right, #0a192f, #05070a);
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: #00f0ff !important;
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        text-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
-    }
-    .stMetric {
-        background: rgba(16, 33, 65, 0.4);
-        border: 1px solid #00f0ff;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.2);
-    }
-    .stSidebar {
-        background-color: rgba(10, 25, 47, 0.9) !important;
-        border-right: 1px solid #00f0ff;
-    }
-    .stButton>button {
-        background: linear-gradient(135deg, #004e92, #000428);
-        color: #00f0ff;
-        border: 1px solid #00f0ff;
-        border-radius: 20px;
-        padding: 0.5rem 2rem;
-        transition: all 0.4s ease;
-        text-transform: uppercase;
-        font-weight: bold;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0 20px #00f0ff;
-        border-color: #fff;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: rgba(16, 33, 65, 0.4);
-        border: 1px solid #333;
-        padding: 5px 15px;
-        border-radius: 5px 5px 0 0;
-        color: #00f0ff;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: rgba(0, 240, 255, 0.2) !important;
-        border: 1px solid #00f0ff !important;
-        color: #fff !important;
-    }
-    /* Radar-like scanning animation for aesthetic */
-    @keyframes scan {
-        0% { border-top: 1px solid #00f0ff; }
-        50% { border-top: 5px solid #00f0ff; }
-        100% { border-top: 1px solid #00f0ff; }
-    }
-    header {
-        border-bottom: 1px solid #00f0ff;
-        animation: scan 2s infinite;
-    }
-    /* Login/Register Styling */
-    .auth-container {
-        max-width: 400px;
-        margin: 50px auto;
-        padding: 30px;
-        background: rgba(10, 25, 47, 0.9);
-        border: 2px solid #00f0ff;
-        border-radius: 15px;
-        box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
-    }
-    .auth-title {
-        text-align: center;
-        margin-bottom: 30px;
-    }
-    /* Full screen background for login */
-    .stApp:has(.auth-container) {
-        background: radial-gradient(circle, #1a1c24 0%, #0e1117 100%);
-    }
-</style>
-""", unsafe_allow_html=True)
-
+# Default Streamlit styling applied automatically.
 # ===============================
 # INIT DATABASE
 # ===============================
@@ -321,7 +233,6 @@ if not st.session_state.logged_in:
 
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
-    st.stop()
 
 # ===============================
 # MAIN DASHBOARD (ONLY RENDERED AFTER LOGIN)
@@ -475,7 +386,7 @@ if st.session_state.tracker_enabled:
         log_event(f"Tracking: {len(active_tracks)} active targets", level="info")
     
     # Store track history for UI
-    if not hasattr(st.session_state, 'track_history'):
+    if 'track_history' not in st.session_state:
         st.session_state.track_history = []
     st.session_state.track_history.append({
         'time': time.time(),
@@ -604,9 +515,6 @@ with tab1:
             title='Range-Doppler Map',
             xaxis_title='Doppler / Velocity (bins)',
             yaxis_title='Range (bins)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#00f0ff'),
             margin=dict(l=40, r=40, t=40, b=40),
             height=350
         )
@@ -623,9 +531,6 @@ with tab1:
             title='Micro-Doppler Spectrogram',
             xaxis_title='Time (bins)',
             yaxis_title='Frequency (Hz)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#00f0ff'),
             margin=dict(l=40, r=40, t=40, b=40),
             height=350
         )
@@ -684,16 +589,9 @@ with tab1:
                         xaxis_title='Range (bins)',
                         yaxis_title='Doppler (bins)',
                         zaxis_title='Time (s)',
-                        xaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="gray", showbackground=False),
-                        yaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="gray", showbackground=False),
-                        zaxis=dict(backgroundcolor="rgba(0,0,0,0)", gridcolor="gray", showbackground=False),
                     ),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#00f0ff'),
                     margin=dict(l=0, r=0, t=30, b=0),
                     height=400,
-                    legend=dict(x=0.7, y=0.9, bgcolor='rgba(0,0,0,0.5)')
                 )
                 st.plotly_chart(fig3d, use_container_width=True)
             else:
@@ -735,10 +633,8 @@ with tab1:
                     'value': thresh * 100}
             }
         ))
-        fig_gauge.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                                font={'color': "#00ff41", 'family': "Courier New"},
-                                height=250, margin=dict(l=20, r=20, t=40, b=20))
-        st.plotly_chart(fig_gauge, width='stretch')
+        fig_gauge.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig_gauge, use_container_width=True)
 
         st.write(f"Confidence: {confidence * 100:.2f}%")
         st.write(f"Cognitive Threshold: {thresh:.2f}")
@@ -812,20 +708,22 @@ with tab2:
     with col_xai1:
         st.write("**RD Map Heatmap**")
         if cam_rd.any():
-            fig_rd, ax_rd = plt.subplots()
+            fig_rd_xai, ax_rd = plt.subplots()
             ax_rd.imshow(rd_norm, cmap='gray')
             ax_rd.imshow(cam_rd, cmap='jet', alpha=0.5)
-            st.pyplot(fig_rd)
+            st.pyplot(fig_rd_xai)
+            plt.close(fig_rd_xai)
         else:
             st.warning("Grad-CAM unavailable for RD Map")
 
     with col_xai2:
         st.write("**Spectrogram Heatmap**")
         if cam_spec.any():
-            fig_sp, ax_sp = plt.subplots()
+            fig_sp_xai, ax_sp = plt.subplots()
             ax_sp.imshow(spec_norm, cmap='gray')
             ax_sp.imshow(cam_spec, cmap='jet', alpha=0.5)
-            st.pyplot(fig_sp)
+            st.pyplot(fig_sp_xai)
+            plt.close(fig_sp_xai)
         else:
             st.warning("Grad-CAM unavailable for Spectrogram")
 
@@ -845,18 +743,15 @@ with tab3:
     fig_beam = go.Figure(data=go.Scatter(
         y=photonic["ttd_vector"],
         mode='lines+markers',
-        line=dict(color='#00f0ff', width=2),
-        marker=dict(size=6, color='#ff00ff'),
+        line=dict(color='#3b82f6', width=2),
+        marker=dict(size=6, color='#60a5fa'),
         fill='tozeroy',
-        fillcolor='rgba(0, 240, 255, 0.1)'
+        fillcolor='rgba(59, 130, 246, 0.1)'
     ))
     fig_beam.update_layout(
         title="True Time Delay Profile",
         xaxis_title="Antenna Element Index",
         yaxis_title="Delay (ns)",
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#00f0ff'),
         margin=dict(l=40, r=40, t=40, b=40),
         height=300
     )

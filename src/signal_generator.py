@@ -20,7 +20,7 @@ def generate_radar_signal(target_type, distance=100, fs=4096):
     # ---- Common Target Physics (RCS & fluctuation) ----
     # Distance attenuation path loss (1/R^4 for radar)
     dist_jitter = distance * np.random.uniform(0.98, 1.02)
-    loss_factor = 1e4 / (dist_jitter ** 4 + 1e-12)
+    loss_factor = min(1e11 / (dist_jitter ** 4 + 1e-12), 10.0)
     attenuation = np.sqrt(loss_factor)
 
     # Calculate RCS fluctuation based on target type

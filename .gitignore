@@ -152,7 +152,13 @@ cython_debug/
 
 # Results and logs
 results/
-system.log
+*.log
+api_server.log
+streamlit_logs.txt
+
+# Frontend build artifacts (node_modules is huge)
+frontend/node_modules/
+frontend/dist/
 
 # Junk files created by previous errors
 cv2

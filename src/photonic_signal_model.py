@@ -1,4 +1,4 @@
-"""
+r"""
 Lightweight photonic radar signal models.
 
 Features:

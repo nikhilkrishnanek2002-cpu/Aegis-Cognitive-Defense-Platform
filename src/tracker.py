@@ -202,26 +202,22 @@ class MultiTargetTracker:
             return {}
         
         # Compute distance matrix: rows=tracks, cols=detections
-        cost_matrix = np.full((len(active_tracks), len(detections)), np.inf)
+        cost_matrix = np.full((len(active_tracks), len(detections)), 1e9)
         for i, track in enumerate(active_tracks):
             for j, det in enumerate(detections):
                 dist = np.linalg.norm(np.array(track.get_position()) - np.array([det[0], det[1]]))
                 if dist < self.gating_threshold:
                     cost_matrix[i, j] = dist
         
-        # Hungarian algorithm (handle all-inf matrix)
-        if np.all(np.isinf(cost_matrix)):
-            # No feasible assignments
-            track_indices, det_indices = [], []
-        else:
-            track_indices, det_indices = linear_sum_assignment(cost_matrix)
+        # Hungarian algorithm
+        track_indices, det_indices = linear_sum_assignment(cost_matrix)
         
         result = {}
         for tid in self.tracks:
             result[tid] = None
         
         for t_idx, d_idx in zip(track_indices, det_indices):
-            if cost_matrix[t_idx, d_idx] < np.inf:
+            if cost_matrix[t_idx, d_idx] < self.gating_threshold:
                 result[active_tracks[t_idx].id] = d_idx
         
         return result
