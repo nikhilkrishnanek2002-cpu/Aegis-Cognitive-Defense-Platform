@@ -257,7 +257,7 @@ def load_metrics_report(path):
 
 def display_metric_image(title, path):
     if os.path.exists(path):
-        st.image(path, caption=title, use_column_width=True)
+        st.image(path, caption=title, use_container_width=True)
     else:
         st.warning(f"{title} not found at {path}")
 
@@ -404,7 +404,8 @@ if len(detections) > 0:
     # ensure spectrogram aligns with rd_map dimensions for cropping
     try:
         spec_resized_full = cv2.resize(spec, (rd_map.shape[1], rd_map.shape[0]))
-    except Exception:
+    except Exception as e:
+        log_event(f"Spectrogram resize error: {e}. Using absolute value fallback.", level="warning")
         spec_resized_full = np.abs(spec)
 
     half = crop_size // 2
@@ -582,8 +583,8 @@ try:
             "confidence": float(confidence),
             "distance": float(distance)
         })
-except Exception:
-    pass
+except Exception as e:
+    log_event(f"Kafka producer error: {e}", level="error")
 
 # ===============================
 # TAB 1: ANALYTICS

@@ -58,7 +58,8 @@ def ca_cfar(rd_map: np.ndarray, guard: int = 2, train: int = 8, pfa: float = 1e-
     num_train = max(1, num_train)
     try:
         alpha = num_train * (pfa ** (-1.0 / num_train) - 1.0)
-    except Exception:
+    except Exception as e:
+        log_event(f"CA-CFAR noise estimation error: {e}. Defaulting alpha to 1.0", level="error")
         alpha = 1.0
 
     # training sum = full - inner
