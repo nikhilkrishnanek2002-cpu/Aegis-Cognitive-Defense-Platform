@@ -132,7 +132,7 @@
     }
   },
   "metadata": {
-    "timestamp": "2026-02-20T10:59:51.052618",
+    "timestamp": "2026-02-20T11:02:37.748137",
     "n_samples": 9,
     "n_classes": 5,
     "config": "experiments/dev_smoke.yaml"
