@@ -22,12 +22,12 @@ export default function Visualization3DComponent() {
         }
     }, [frame])
 
-    if (!data3D) {
+    if (!data3D || !data3D.rd_map || !data3D.spec) {
         return <p style={{ color: '#94a3b8' }}>⏳ Waiting for radar data...</p>
     }
 
     // Prepare 3D surface plot for Range-Doppler map
-    const rd_map = data3D.rd_map
+    const rd_map = data3D.rd_map!
     const z_vals = rd_map.map((row) => row.map((v) => Math.abs(v)))
 
     // Prepare Range-Doppler 3D scatter
@@ -43,7 +43,7 @@ export default function Visualization3DComponent() {
     })
 
     // Prepare 3D surface for spectrogram
-    const spec = data3D.spec
+    const spec = data3D.spec!
     const spec_vals = spec.map((row) => row.map((v) => Math.abs(v)))
 
     return (
@@ -59,7 +59,7 @@ export default function Visualization3DComponent() {
                         showscale: true,
                     }]}
                     layout={{
-                        title: 'RD Map 3D',
+                        title: { text: 'RD Map 3D' },
                         scene: {
                             xaxis: { title: 'Doppler Bins' },
                             yaxis: { title: 'Range Bins' },
@@ -92,7 +92,7 @@ export default function Visualization3DComponent() {
                         type: 'scatter3d',
                     }]}
                     layout={{
-                        title: 'Detection Scatter 3D',
+                        title: { text: 'Detection Scatter 3D' },
                         scene: {
                             xaxis: { title: 'Doppler' },
                             yaxis: { title: 'Range' },
@@ -117,7 +117,7 @@ export default function Visualization3DComponent() {
                         showscale: true,
                     }]}
                     layout={{
-                        title: 'Spectrogram 3D',
+                        title: { text: 'Spectrogram 3D' },
                         scene: {
                             xaxis: { title: 'Frequency' },
                             yaxis: { title: 'Time' },
@@ -143,7 +143,7 @@ export default function Visualization3DComponent() {
                         showscale: true,
                     }]}
                     layout={{
-                        title: 'RD Map 2D Heatmap',
+                        title: { text: 'RD Map 2D Heatmap' },
                         xaxis: { title: 'Doppler Bins' },
                         yaxis: { title: 'Range Bins' },
                         plot_bgcolor: 'rgba(0,0,0,0)',

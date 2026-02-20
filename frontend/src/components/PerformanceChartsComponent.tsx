@@ -56,7 +56,7 @@ export default function PerformanceChartsComponent() {
                             colorscale: 'Blues',
                         }]}
                         layout={{
-                            title: 'Confusion Matrix',
+                            title: { text: 'Confusion Matrix' },
                             xaxis: { title: 'Predicted' },
                             yaxis: { title: 'Actual' },
                             plot_bgcolor: 'rgba(0,0,0,0)',
@@ -92,7 +92,7 @@ export default function PerformanceChartsComponent() {
                             }
                         ]}
                         layout={{
-                            title: 'ROC Curve',
+                            title: { text: 'ROC Curve' },
                             xaxis: { title: 'False Positive Rate' },
                             yaxis: { title: 'True Positive Rate' },
                             plot_bgcolor: 'rgba(0,0,0,0)',
@@ -120,7 +120,7 @@ export default function PerformanceChartsComponent() {
                             }
                         ]}
                         layout={{
-                            title: 'Precision-Recall Curve',
+                            title: { text: 'Precision-Recall Curve' },
                             xaxis: { title: 'Recall' },
                             yaxis: { title: 'Precision' },
                             plot_bgcolor: 'rgba(0,0,0,0)',
@@ -154,7 +154,7 @@ export default function PerformanceChartsComponent() {
                             }
                         ]}
                         layout={{
-                            title: 'Loss Over Epochs',
+                            title: { text: 'Loss Over Epochs' },
                             xaxis: { title: 'Epoch' },
                             yaxis: { title: 'Loss' },
                             plot_bgcolor: 'rgba(0,0,0,0)',

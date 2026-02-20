@@ -3,7 +3,12 @@ Radar processing pipeline: signal generation, detection, AI classification, trac
 """
 import time
 import numpy as np
-import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 import cv2
 import json
 import uuid
@@ -21,7 +26,11 @@ from src.config import get_config
 from src.signal_generator import generate_radar_signal
 from src.detection import detect_targets_from_raw
 from src.feature_extractor import get_all_features
-from src.model_pytorch import build_pytorch_model
+if HAS_TORCH:
+    from src.model_pytorch import build_pytorch_model
+else:
+    def build_pytorch_model(*args, **kwargs):
+        return None
 from src.cognitive_logic import adaptive_threshold
 from src.logger import log_event
 from src.ai_hardening import AIReliabilityHardener, GradCAMExplainer
@@ -38,6 +47,8 @@ _cfg = get_config()
 
 # Load model once at module level (cached)
 def _load_model():
+    if not HAS_TORCH:
+        return None, None
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
     m = build_pytorch_model(num_classes=len(LABELS))

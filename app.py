@@ -7,7 +7,12 @@ import time
 import numpy as np
 import pandas as pd
 import cv2
-import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 import matplotlib
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -26,7 +31,11 @@ from src.logger import init_logging, log_event, read_logs
 from src.startup_checks import run_startup_checks
 from src.feature_extractor import get_all_features
 from src.detection import detect_targets_from_raw
-from src.model_pytorch import build_pytorch_model
+if HAS_TORCH:
+    from src.model_pytorch import build_pytorch_model
+else:
+    def build_pytorch_model(*args, **kwargs):
+        return None
 from src.auth import authenticate
 from src.security_utils import safe_path
 from src.signal_generator import generate_radar_signal
@@ -36,7 +45,11 @@ from src.cognitive_controller import CognitiveRadarController
 from src.ew_defense import EWDefenseController
 from src.db import init_db, ensure_admin_exists
 from src.stream_bus import get_producer
-from src.xai_pytorch import grad_cam_pytorch
+if HAS_TORCH:
+    from src.xai_pytorch import grad_cam_pytorch
+else:
+    def grad_cam_pytorch(*args, **kwargs):
+        return None
 from src.cognitive_logic import adaptive_threshold
 from src.demo_scenarios import (
     run_drone_approach_demo,
@@ -82,7 +95,8 @@ PRIORITY = {
     "Bird": "Low",
     "Helicopter": "High",
     "Missile": "Critical",
-    "Clutter": "Low"
+    "Clutter": "Low",
+    "Unknown": "Low"
 }
 
 METRICS_JSON_PATH = os.path.join("outputs", "reports", "metrics.json")
@@ -132,26 +146,38 @@ if "demo_timeline" not in st.session_state:
 # ===============================
 @st.cache_resource
 def load_model():
-    # respect startup GPU availability
-    use_cuda = _startup.get("gpu_available", False) and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-    radar_model = build_pytorch_model(num_classes=len(LABELS))
-    model_path = safe_path("radar_model_pytorch.pt")
-    if os.path.exists(model_path):
-        try:
-            state_dict = torch.load(model_path, map_location=device, weights_only=True)
-            radar_model.load_state_dict(state_dict)
-            st.success("✅ Radar AI model weights loaded successfully.")
-        except Exception as e:
-            st.error(f"Error loading model weights: {e}")
-    else:
-        st.warning("⚠️ Model weights not found in results/. Using untrained model.")
+    if not HAS_TORCH:
+        st.warning("⚠️ PyTorch not installed. AI models unavailable.")
+        return None
     
-    radar_model.to(device)
-    radar_model.eval()
-    return radar_model, device
+    try:
+        # respect startup GPU availability
+        use_cuda = _startup.get("gpu_available", False) and torch.cuda.is_available()
+        device = torch.device("cuda" if use_cuda else "cpu")
+        radar_model = build_pytorch_model(num_classes=len(LABELS))
+        model_path = safe_path("radar_model_pytorch.pt")
+        if os.path.exists(model_path):
+            try:
+                state_dict = torch.load(model_path, map_location=device, weights_only=True)
+                radar_model.load_state_dict(state_dict)
+                st.success("✅ Radar AI model weights loaded successfully.")
+            except Exception as e:
+                st.error(f"Error loading model weights: {e}")
+        else:
+            st.warning("⚠️ Model weights not found in results/. Using untrained model.")
+        
+        radar_model.to(device)
+        radar_model.eval()
+        return radar_model, device
+    except Exception as e:
+        st.error(f"Failed to load model: {e}")
+        return None
 
-radar_model, device = load_model()
+radar_model = None
+device = None
+_load_model_result = load_model()
+if _load_model_result is not None:
+    radar_model, device = _load_model_result
 
 
 @st.cache_data(show_spinner=False)
@@ -310,7 +336,7 @@ IMG_SIZE = 128
 det_cfg = cfg.get('detection', {})
 crop_size = int(det_cfg.get('crop_size', 32))
 
-if len(detections) > 0:
+if len(detections) > 0 and HAS_TORCH:
     log_event(f"Processing {len(detections)} CFAR detections in AI pipeline", level="info")
     # ensure spectrogram aligns with rd_map dimensions for cropping
     try:
@@ -465,15 +491,20 @@ spec_resized = cv2.resize(spec, (128, 128))
 
 rd_norm = rd_map_resized / (np.max(rd_map_resized) + 1e-8)
 spec_norm = spec_resized / (np.max(spec_resized) + 1e-8)
-rd_t = torch.from_numpy(rd_norm).float().unsqueeze(0).unsqueeze(0).to(device) # (1, 1, 128, 128)
-spec_t = torch.from_numpy(spec_norm).float().unsqueeze(0).unsqueeze(0).to(device) # (1, 1, 128, 128)
-meta_t = torch.from_numpy(meta).float().unsqueeze(0).to(device)
-with torch.no_grad():
-    output = radar_model(rd_t, spec_t, meta_t)
-    probs = torch.softmax(output, dim=1)
-    confidence = float(torch.max(probs))
-    detected_idx = int(torch.argmax(probs))
-    detected = LABELS[detected_idx] if detected_idx < len(LABELS) else "Clutter"
+
+confidence = 0.0
+detected = "Unknown"
+
+if HAS_TORCH:
+    rd_t = torch.from_numpy(rd_norm).float().unsqueeze(0).unsqueeze(0).to(device) # (1, 1, 128, 128)
+    spec_t = torch.from_numpy(spec_norm).float().unsqueeze(0).unsqueeze(0).to(device) # (1, 1, 128, 128)
+    meta_t = torch.from_numpy(meta).float().unsqueeze(0).to(device)
+    with torch.no_grad():
+        output = radar_model(rd_t, spec_t, meta_t)
+        probs = torch.softmax(output, dim=1)
+        confidence = float(torch.max(probs))
+        detected_idx = int(torch.argmax(probs))
+        detected = LABELS[detected_idx] if detected_idx < len(LABELS) else "Clutter"
 
 st.session_state.track_history = st.session_state.track_history[-50:]
 
@@ -699,33 +730,36 @@ with tab2:
     st.subheader("Explainable AI: Grad-CAM Visualizations")
     st.write("Visualizing which parts of the input maps influenced the AI's decision.")
     
-    col_xai1, col_xai2 = st.columns(2)
-    
-    # We need to enable gradients for Grad-CAM
-    cam_rd = grad_cam_pytorch(radar_model, rd_t, spec_t, meta_t, radar_model.rd_branch.conv2)
-    cam_spec = grad_cam_pytorch(radar_model, rd_t, spec_t, meta_t, radar_model.spec_branch.conv2)
+    if HAS_TORCH and radar_model is not None:
+        col_xai1, col_xai2 = st.columns(2)
+        
+        # We need to enable gradients for Grad-CAM
+        cam_rd = grad_cam_pytorch(radar_model, rd_t, spec_t, meta_t, radar_model.rd_branch.conv2)
+        cam_spec = grad_cam_pytorch(radar_model, rd_t, spec_t, meta_t, radar_model.spec_branch.conv2)
 
-    with col_xai1:
-        st.write("**RD Map Heatmap**")
-        if cam_rd.any():
-            fig_rd_xai, ax_rd = plt.subplots()
-            ax_rd.imshow(rd_norm, cmap='gray')
-            ax_rd.imshow(cam_rd, cmap='jet', alpha=0.5)
-            st.pyplot(fig_rd_xai)
-            plt.close(fig_rd_xai)
-        else:
-            st.warning("Grad-CAM unavailable for RD Map")
+        with col_xai1:
+            st.write("**RD Map Heatmap**")
+            if cam_rd.any():
+                fig_rd_xai, ax_rd = plt.subplots()
+                ax_rd.imshow(rd_norm, cmap='gray')
+                ax_rd.imshow(cam_rd, cmap='jet', alpha=0.5)
+                st.pyplot(fig_rd_xai)
+                plt.close(fig_rd_xai)
+            else:
+                st.warning("Grad-CAM unavailable for RD Map")
 
-    with col_xai2:
-        st.write("**Spectrogram Heatmap**")
-        if cam_spec.any():
-            fig_sp_xai, ax_sp = plt.subplots()
-            ax_sp.imshow(spec_norm, cmap='gray')
-            ax_sp.imshow(cam_spec, cmap='jet', alpha=0.5)
-            st.pyplot(fig_sp_xai)
-            plt.close(fig_sp_xai)
-        else:
-            st.warning("Grad-CAM unavailable for Spectrogram")
+        with col_xai2:
+            st.write("**Spectrogram Heatmap**")
+            if cam_spec.any():
+                fig_sp_xai, ax_sp = plt.subplots()
+                ax_sp.imshow(spec_norm, cmap='gray')
+                ax_sp.imshow(cam_spec, cmap='jet', alpha=0.5)
+                st.pyplot(fig_sp_xai)
+                plt.close(fig_sp_xai)
+            else:
+                st.warning("Grad-CAM unavailable for Spectrogram")
+    else:
+        st.warning("⚠️ Explainable AI requires PyTorch. Install PyTorch to enable Grad-CAM visualizations.")
 
 # ===============================
 # TAB 3: PHOTONIC PARAMETERS
