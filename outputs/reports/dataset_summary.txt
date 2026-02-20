@@ -1,0 +1,73 @@
+================================================================================
+                             DATASET SUMMARY REPORT                             
+================================================================================
+
+Generated: 2026-02-20T10:59:46.376075
+Total Samples: 30
+Number of Classes: 6
+SNR Data Available: No
+
+────────────────────────────────────────────────────────────────────────────────
+CLASS DISTRIBUTION
+────────────────────────────────────────────────────────────────────────────────
+Class 0                   5 samples ( 16.7%)
+Class 1                   5 samples ( 16.7%)
+Class 2                   5 samples ( 16.7%)
+Class 3                   5 samples ( 16.7%)
+Class 4                   5 samples ( 16.7%)
+Class 5                   5 samples ( 16.7%)
+
+────────────────────────────────────────────────────────────────────────────────
+SIGNAL LENGTH STATISTICS (Primary Dimension)
+────────────────────────────────────────────────────────────────────────────────
+Minimum:       128 samples
+Maximum:       128 samples
+Mean:          128.0 samples
+Median:        128.0 samples
+Std Dev:       0.0 samples
+Total:         3,840 samples
+
+────────────────────────────────────────────────────────────────────────────────
+TOTAL SAMPLES PER SIGNAL (All Dimensions)
+────────────────────────────────────────────────────────────────────────────────
+Minimum:       16,384 values
+Maximum:       16,384 values
+Mean:          16,384 values
+Median:        16,384 values
+Std Dev:       0 values
+
+────────────────────────────────────────────────────────────────────────────────
+PER-CLASS DETAILED STATISTICS
+────────────────────────────────────────────────────────────────────────────────
+
+Class 0:
+  Count:           5 samples
+  Percentage:      16.7% of dataset
+  Signal Length:   min=128, max=128, mean=128.0
+
+Class 1:
+  Count:           5 samples
+  Percentage:      16.7% of dataset
+  Signal Length:   min=128, max=128, mean=128.0
+
+Class 2:
+  Count:           5 samples
+  Percentage:      16.7% of dataset
+  Signal Length:   min=128, max=128, mean=128.0
+
+Class 3:
+  Count:           5 samples
+  Percentage:      16.7% of dataset
+  Signal Length:   min=128, max=128, mean=128.0
+
+Class 4:
+  Count:           5 samples
+  Percentage:      16.7% of dataset
+  Signal Length:   min=128, max=128, mean=128.0
+
+Class 5:
+  Count:           5 samples
+  Percentage:      16.7% of dataset
+  Signal Length:   min=128, max=128, mean=128.0
+
+================================================================================

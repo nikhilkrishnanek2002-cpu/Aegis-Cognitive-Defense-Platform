@@ -1,4 +1,27 @@
 # Centralized configuration for PPhotonic Radar AI
+
+# Experiment Configuration
+experiment:
+  name: "cognitive_radar_ai"
+  description: "Base experiment configuration for cognitive photonic radar AI"
+  seed: 42                          # Random seed for reproducibility
+  output_dir: outputs               # Base output directory for experiments
+  samples_per_class: 50             # Samples to generate per class during preprocessing
+
+# Training Configuration
+training:
+  epochs: 20                        # Number of training epochs
+  batch_size: 16                    # Batch size for training
+  learning_rate: 0.001              # Adam optimizer learning rate
+  validation_split: 0.2             # Fraction of data for validation
+
+# Model Configuration
+model_config:
+  num_classes: 6                    # Number of output classes
+  metadata_size: 8                  # Size of metadata vector
+  input_height: 128                 # Input height for Range-Doppler and Spectrogram
+  input_width: 128                  # Input width for Range-Doppler and Spectrogram
+
 logging:
   level: INFO
   dir: results

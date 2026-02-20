@@ -1,0 +1,22 @@
+experiment:
+  name: dev_smoke
+  seed: 1337
+  output_root: outputs
+
+data:
+  source: synthetic
+  samples_per_class: 5
+  train_split: 0.7
+
+training:
+  epochs: 2
+  batch_size: 4
+  learning_rate: 0.001
+  val_split: 0.2
+  device: auto
+
+evaluation:
+  batch_size: 4
+
+logging:
+  level: INFO

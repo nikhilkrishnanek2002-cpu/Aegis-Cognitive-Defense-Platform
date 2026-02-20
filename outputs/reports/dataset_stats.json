@@ -1,0 +1,81 @@
+{
+  "class_distribution": {
+    "0": 5,
+    "1": 5,
+    "2": 5,
+    "3": 5,
+    "4": 5,
+    "5": 5
+  },
+  "signal_lengths": {
+    "min": 128,
+    "max": 128,
+    "mean": 128.0,
+    "median": 128.0,
+    "std": 0.0,
+    "total_samples": 3840
+  },
+  "signal_total_samples": {
+    "min": 16384,
+    "max": 16384,
+    "mean": 16384.0,
+    "median": 16384.0,
+    "std": 0.0
+  },
+  "per_class": {
+    "Class 0": {
+      "count": 5,
+      "percentage": 16.666666666666668,
+      "signal_lengths": {
+        "min": 128,
+        "max": 128,
+        "mean": 128.0
+      }
+    },
+    "Class 1": {
+      "count": 5,
+      "percentage": 16.666666666666668,
+      "signal_lengths": {
+        "min": 128,
+        "max": 128,
+        "mean": 128.0
+      }
+    },
+    "Class 2": {
+      "count": 5,
+      "percentage": 16.666666666666668,
+      "signal_lengths": {
+        "min": 128,
+        "max": 128,
+        "mean": 128.0
+      }
+    },
+    "Class 3": {
+      "count": 5,
+      "percentage": 16.666666666666668,
+      "signal_lengths": {
+        "min": 128,
+        "max": 128,
+        "mean": 128.0
+      }
+    },
+    "Class 4": {
+      "count": 5,
+      "percentage": 16.666666666666668,
+      "signal_lengths": {
+        "min": 128,
+        "max": 128,
+        "mean": 128.0
+      }
+    },
+    "Class 5": {
+      "count": 5,
+      "percentage": 16.666666666666668,
+      "signal_lengths": {
+        "min": 128,
+        "max": 128,
+        "mean": 128.0
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# Example Experiment Configuration
+# Copy this file and modify as needed for your experiments
+
+experiment:
+  name: "baseline_cognitive_radar"
+  description: "Baseline experiment for cognitive photonic radar AI system"
+  seed: 42
+  output_dir: outputs
+  samples_per_class: 50
+
+training:
+  epochs: 20
+  batch_size: 16
+  learning_rate: 0.001
+  validation_split: 0.2
+
+model_config:
+  num_classes: 6
+  metadata_size: 8
+  input_height: 128
+  input_width: 128
+
+logging:
+  level: INFO
+  dir: results
+  file: system.log
+  max_bytes: 10485760
+  backup_count: 5

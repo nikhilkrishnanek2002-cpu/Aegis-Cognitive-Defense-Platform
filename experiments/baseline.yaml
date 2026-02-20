@@ -1,0 +1,24 @@
+experiment:
+  name: baseline_photonic_radar
+  seed: 42
+  output_root: outputs
+  description: >-
+    Baseline synthetic experiment showcasing reproducible training, evaluation,
+    and reporting for the cognitive photonic radar model.
+
+data:
+  source: synthetic
+  samples_per_class: 80
+  train_split: 0.8
+
+training:
+  epochs: 20
+  batch_size: 16
+  learning_rate: 0.001
+  device: auto
+
+evaluation:
+  batch_size: 32
+
+logging:
+  level: INFO

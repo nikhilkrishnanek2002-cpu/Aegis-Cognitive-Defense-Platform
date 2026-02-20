@@ -1,0 +1,437 @@
+# Comprehensive YAML Experiment Configuration
+# Cognitive Photonic Radar AI System
+# For reproducible research experiments
+
+################################################################################
+# EXPERIMENT METADATA
+################################################################################
+experiment:
+  name: "cognitive_radar_baseline"
+  description: "Baseline experiment for cognitive photonic radar AI classification"
+  seed: 42                              # Random seed for reproducibility
+  output_dir: experiments               # Base output directory for all experiments
+  tags:
+    - "radar"
+    - "photonic"
+    - "classification"
+    - "baseline"
+  author: "Radar AI Team"
+  notes: "Reproduces baseline performance metrics for cognitive radar AI"
+
+################################################################################
+# DATASET CONFIGURATION
+################################################################################
+dataset:
+  # Data paths
+  train_path: "data/train"              # Training dataset directory
+  validation_path: "data/val"           # Validation dataset directory
+  test_path: "data/test"                # Test dataset directory
+  
+  # Dataset generation
+  samples_per_class: 50                 # Samples to generate per class
+  n_classes: 6                          # Number of radar target classes
+  classes:
+    - "drone"                           # Class 0
+    - "aircraft"                        # Class 1
+    - "bird"                            # Class 2
+    - "helicopter"                      # Class 3
+    - "missile"                         # Class 4
+    - "clutter"                         # Class 5
+  
+  # Data split (if generating synthetic)
+  train_split: 0.7                      # 70% training
+  validation_split: 0.15                # 15% validation
+  test_split: 0.15                      # 15% testing
+  
+  # Data preprocessing
+  preprocessing:
+    normalize: true                     # Normalize to [0, 1]
+    normalize_method: "minmax"          # minmax, zscore, or robust
+    resize_height: 128                  # Target height for Range-Doppler/Spectrogram
+    resize_width: 128                   # Target width for Range-Doppler/Spectrogram
+    augmentation: false                 # Apply data augmentation
+    augmentation_probability: 0.5       # Probability of augmentation per sample
+
+################################################################################
+# SIGNAL SIMULATION PARAMETERS
+################################################################################
+signal_simulation:
+  # Radar parameters
+  carrier_frequency_hz: 10e9            # Carrier frequency (10 GHz)
+  bandwidth_hz: 5e9                     # Signal bandwidth (5 GHz)
+  pulse_duration_us: 1.0                # Pulse duration (microseconds)
+  prf_hz: 10000                         # Pulse repetition frequency
+  integration_time_s: 0.1               # Integration/coherent processing time
+  
+  # SNR and noise
+  target_snr_db: 10.0                   # Target signal-to-noise ratio
+  snr_variation_db: 5.0                 # Random SNR variation (±)
+  noise_type: "gaussian"                # Noise type: gaussian, rayleigh, etc.
+  background_clutter_enabled: true      # Include background clutter
+  clutter_level_db: -20.0               # Clutter level relative to signal
+  
+  # Waveform parameters
+  waveform_type: "lte"                  # Waveform: lte, chirp, fmcw, dfrc
+  chirp_bw_hz: 5e9                      # Chirp bandwidth (if chirp waveform)
+  chirp_duration_us: 1.0                # Chirp duration (if chirp waveform)
+  
+  # Photonic model (specific to photonic radar)
+  photonic_enabled: true                # Enable photonic model
+  laser_linewidth_hz: 1e4               # Laser linewidth (Hz) - phase noise source
+  optical_freq_hz: 193.414e12           # Optical carrier frequency
+  local_osc_freq_offset_hz: 1e9         # Beat frequency (signal - LO)
+  num_optical_channels: 4               # Number of parallel optical channels
+  beam_jitter_std_ns: 0.5               # Per-channel jitter (ns)
+  fractional_delay_method: "fft"        # fft (recommended) or sinc
+  fractional_delay_max_ns: 5.0          # Max delay for stability (ns)
+  
+  # Temperature effects (photonic)
+  temperature_drift_enabled: true       # Enable thermal drift simulation
+  temperature_drift_rate_C_per_s: 0.005 # Drift rate (deg C / second)
+  temperature_coherence_scale_C: 2.0    # Coherence decay scale (deg C)
+  
+  # Target simulation
+  target_range_m: [500, 5000]           # Range: min, max (meters)
+  target_doppler_mps: [-100, 100]       # Doppler velocity: min, max (m/s)
+  target_rcs_db: [-20, 20]              # Radar cross-section: min, max (dB)
+  target_aspect_angle_deg: [0, 360]     # Aspect angle: min, max (degrees)
+  
+  # Seed for reproducibility
+  seed: null                            # null = use experiment seed
+
+################################################################################
+# MODEL ARCHITECTURE
+################################################################################
+model:
+  architecture: "photonic_radar_ai"     # Model type identifier
+  
+  # Input specifications
+  input_shapes:
+    range_doppler: [128, 128]           # Range-Doppler map (H, W)
+    spectrogram: [128, 128]             # Spectrogram (H, W)
+    metadata: 8                         # Metadata vector dimension
+  
+  # Range-Doppler branch (CNN)
+  rd_branch:
+    type: "cnn"                         # Branch type
+    input_channels: 1                   # Input is grayscale
+    conv_layers:
+      - {out_channels: 32, kernel_size: 3, padding: 1}
+      - {out_channels: 64, kernel_size: 3, padding: 1}
+    pool_size: 2                        # Max pooling size
+    dropout: 0.3                        # Dropout rate
+    activation: "relu"                  # Activation function
+  
+  # Spectrogram branch (CNN)
+  spec_branch:
+    type: "cnn"
+    input_channels: 1
+    conv_layers:
+      - {out_channels: 32, kernel_size: 3, padding: 1}
+      - {out_channels: 64, kernel_size: 3, padding: 1}
+    pool_size: 2
+    dropout: 0.3
+    activation: "relu"
+  
+  # Metadata branch (MLP)
+  metadata_branch:
+    type: "mlp"
+    input_dim: 8                        # Input metadata dimension
+    hidden_layers:
+      - {out_dim: 32, activation: "relu"}
+      - {out_dim: 16, activation: "relu"}
+    dropout: 0.2
+  
+  # Fusion layer
+  fusion:
+    method: "concatenate"               # concat, add, multiply, attention
+    hidden_dim: 128                     # Fusion layer hidden dimension
+    activation: "relu"
+    dropout: 0.3
+  
+  # Classification head
+  classifier:
+    hidden_dim: 64                      # Hidden layer before output
+    output_dim: 6                       # Number of classes
+    activation: "relu"
+    dropout: 0.2
+  
+  # Model-level settings
+  use_batch_norm: false                 # Use batch normalization
+  weight_init: "kaiming"                # Weight initialization: kaiming, xavier, uniform
+  device: "cuda"                        # cuda or cpu
+
+################################################################################
+# TRAINING CONFIGURATION
+################################################################################
+training:
+  # Epochs and batch size
+  epochs: 20                            # Number of training epochs
+  batch_size: 16                        # Training batch size
+  validation_batch_size: 32             # Validation batch size
+  test_batch_size: 32                   # Test batch size
+  
+  # Data loading
+  num_workers: 4                        # Number of data loading workers
+  pin_memory: true                      # Pin memory for faster GPU transfer
+  persistent_workers: true              # Keep workers alive between epochs
+  
+  # Optimizer configuration
+  optimizer:
+    name: "adam"                        # adam, sgd, adamw, rmsprop
+    learning_rate: 0.001                # Initial learning rate
+    weight_decay: 1e-5                  # L2 regularization
+    betas: [0.9, 0.999]                 # Adam beta parameters
+    eps: 1e-8                           # Adam epsilon
+    momentum: 0.9                       # SGD momentum (if using SGD)
+    nesterov: true                      # SGD Nesterov acceleration
+  
+  # Learning rate schedule
+  lr_schedule:
+    enabled: false                      # Enable learning rate scheduling
+    strategy: "step"                    # step, exponential, cosine, warmup
+    step_size: 10                       # Decay every N epochs (for step)
+    gamma: 0.1                          # Decay factor
+    min_lr: 1e-6                        # Minimum learning rate
+  
+  # Loss function
+  loss:
+    name: "crossentropy"                # crossentropy, focal, triplet, etc.
+    reduction: "mean"                   # mean, sum, none
+    class_weights: null                 # null = no weighting, or list of weights
+  
+  # Early stopping
+  early_stopping:
+    enabled: false                      # Stop if validation metric doesn't improve
+    patience: 5                         # Epochs to wait before stopping
+    metric: "val_loss"                  # Metric to monitor: val_loss, val_accuracy
+    mode: "min"                         # min (lower is better) or max
+    min_delta: 1e-4                     # Minimum change to qualify as improvement
+  
+  # Model checkpointing
+  checkpointing:
+    enabled: true                       # Save model during training
+    save_best: true                     # Save best model
+    save_frequency: 5                   # Save every N epochs
+    keep_best_k: 3                      # Keep top K best models
+  
+  # Gradient handling
+  gradient_clipping:
+    enabled: false                      # Clip gradients
+    max_norm: 1.0                       # Max gradient norm
+  
+  # Mixed precision training (fp16)
+  mixed_precision: false                # Use automatic mixed precision
+  
+  # Reproducibility
+  deterministic: true                   # Set cuDNN to deterministic mode
+
+################################################################################
+# EVALUATION CONFIGURATION
+################################################################################
+evaluation:
+  # Evaluation frequency
+  eval_every_n_epochs: 1                # Run validation every N epochs
+  eval_on_train: false                  # Also evaluate on training set
+  
+  # Metrics to compute
+  metrics:
+    - "accuracy"                        # Overall accuracy
+    - "balanced_accuracy"               # Balanced accuracy (per-class average)
+    - "precision"                       # True positives / (TP + FP)
+    - "recall"                          # True positives / (TP + FN)
+    - "f1_score"                        # Harmonic mean of precision & recall
+    - "specificity"                     # True negatives / (TN + FP)
+    - "roc_auc"                         # Area under ROC curve
+    - "confusion_matrix"                # Full confusion matrix
+    - "kappa_score"                     # Cohen's kappa (inter-rater agreement)
+  
+  # Averaging method for multi-class metrics
+  metric_averaging: "weighted"          # weighted, macro, micro
+  
+  # ROC/AUC settings
+  roc_auc:
+    enabled: true                       # Compute ROC-AUC
+    average_method: "ovr"               # ovr (one-vs-rest) or ovo (one-vs-one)
+  
+  # Confusion matrix
+  confusion_matrix:
+    enabled: true                       # Generate confusion matrix
+    plot: true                          # Create heatmap visualization
+    normalize: false                    # Normalize by row (true) or raw counts (false)
+  
+  # Radar-specific metrics
+  radar_metrics:
+    probability_of_detection: true      # Pd = trace(CM) / sum(CM)
+    false_alarm_rate: true              # FAR = (sum(CM) - trace(CM)) / sum(CM)
+    detection_range_analysis: false     # Analyze performance by range bins
+  
+  # Statistical significance
+  statistical_tests:
+    enabled: false                      # Run significance tests
+    test_type: "mcnemar"                # McNemar, Cochran-Q, etc.
+    significance_level: 0.05            # Alpha level
+  
+  # Visualization
+  visualizations:
+    confusion_matrix: true              # Plot
+    roc_curve: true                     # Plot ROC curve
+    precision_recall_curve: false       # Plot PR curve
+    calibration_plot: false             # Plot calibration
+    feature_importance: false           # Plot feature importance (if applicable)
+    grad_cam: false                     # Grad-CAM saliency maps
+
+################################################################################
+# OUTPUT AND LOGGING
+################################################################################
+output:
+  # Output directory structure
+  base_dir: "experiments"               # Base output directory
+  create_timestamp_subdir: true         # Create subdirectory with timestamp
+  subdir_format: "exp_%Y%m%d_%H%M%S"   # Timestamp format (strftime)
+  
+  # Subdirectories to create
+  subdirectories:
+    - "models"                          # Trained model checkpoints
+    - "logs"                            # Training logs
+    - "plots"                           # Visualization plots
+    - "reports"                         # Experiment reports
+    - "predictions"                     # Model predictions on test set
+    - "configs"                         # Copy of configuration files
+  
+  # File outputs
+  save_model: true                      # Save final trained model
+  save_best_model: true                 # Save best model during training
+  save_metrics: true                    # Save metrics.json
+  save_history: true                    # Save training_history.json
+  save_config: true                     # Save copy of config.yaml
+  save_predictions: true                # Save test set predictions
+  save_plots: true                      # Save all plot visualizations
+  
+  # File formats
+  model_format: "pytorch"               # pytorch (.pt) or onnx (.onnx)
+  metrics_format: "json"                # json or csv
+  history_format: "json"                # json or csv
+  predictions_format: "json"            # json, csv, or npy
+
+################################################################################
+# LOGGING CONFIGURATION
+################################################################################
+logging:
+  # Console logging
+  console:
+    enabled: true                       # Print to console
+    level: "INFO"                       # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # File logging
+  file:
+    enabled: true                       # Write to log file
+    level: "INFO"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    filename: "experiment.log"
+    max_bytes: 10485760                 # 10 MB
+    backup_count: 5                     # Keep 5 backup files
+  
+  # Experiment tracking
+  experiment_tracking:
+    enabled: false                      # Enable experiment tracking
+    backend: "mlflow"                   # mlflow, wandb, tensorboard, neptune
+    project: "cognitive-radar-ai"
+    entity: "radar-team"
+    log_hyperparameters: true
+    log_metrics: true
+    log_artifacts: true
+  
+  # TensorBoard logging
+  tensorboard:
+    enabled: false                      # Enable TensorBoard logging
+    log_dir: "logs/tensorboard"
+    log_frequency: 10                   # Log every N batches
+  
+  # Verbosity
+  verbose: true                         # Print detailed progress
+  progress_bar: true                    # Show tqdm progress bar
+
+################################################################################
+# REPRODUCIBILITY & VALIDATION
+################################################################################
+reproducibility:
+  # Random seeds
+  random_seed: 42                       # Python random seed
+  numpy_seed: 42                        # NumPy seed
+  torch_seed: 42                        # PyTorch seed
+  cuda_seed: 42                         # CUDA seed
+  
+  # Determinism
+  set_deterministic: true               # Set deterministic algorithms
+  benchmark: false                      # Enable cudnn benchmark (faster but non-deterministic)
+  
+  # Validation
+  validate_config: true                 # Validate config file
+  validate_data: true                   # Check data integrity
+  validate_model: true                  # Verify model on dummy input
+  
+  # Checksums (for data integrity)
+  verify_checksums: false               # Verify dataset checksums
+  dataset_checksums:
+    train: null                         # sha256 of training data
+    validation: null
+    test: null
+
+################################################################################
+# PERFORMANCE & OPTIMIZATION
+################################################################################
+performance:
+  # Device settings
+  device: "cuda"                        # cuda or cpu
+  cuda_visible_devices: "0"             # GPU device IDs to use
+  
+  # Distributed training
+  distributed_training: false           # Enable distributed/multi-GPU training
+  distributed_backend: "nccl"           # nccl or gloo
+  distributed_rank: 0
+  distributed_world_size: 1
+  
+  # Profiling
+  profile: false                        # Enable profiling
+  profile_module: "cpu"                 # cpu, cuda, or both
+  
+  # Memory optimization
+  gradient_accumulation_steps: 1        # Accumulate gradients over N batches
+  
+  # Precision
+  dtype: "float32"                      # float32, float16, or bfloat16
+
+################################################################################
+# DATASET-SPECIFIC NOTES
+################################################################################
+notes:
+  dataset: |
+    Six-class radar target classification dataset:
+    0: Drone (typically small, fast)
+    1: Aircraft (larger, slower)
+    2: Bird (irregular, fluttering)
+    3: Helicopter (rotating blades signature)
+    4: Missile (high speed, transient)
+    5: Clutter (stationary background, noise)
+  
+  features: |
+    Three feature types extracted from radar signal:
+    1. Range-Doppler Map (128x128): Time-frequency representation
+    2. Spectrogram (128x128): Frequency analysis of signal
+    3. Metadata (8-dim): SNR, aspect angle, range, doppler, etc.
+  
+  photonic_considerations: |
+    System accounts for photonic radar effects:
+    - Laser phase noise (linewidth effects)
+    - Temperature drift and coherence decay
+    - Beam jitter in multi-channel optical receiver
+    - Fractional delay in optical signal path
+  
+  expected_performance: |
+    Baseline expectation on synthetic data with moderate SNR (10 dB):
+    - Accuracy: ~85-92%
+    - Pd (Probability of Detection): ~88-95%
+    - FAR (False Alarm Rate): ~5-10%
+    - Most confusion between similar classes (helicopter vs aircraft)

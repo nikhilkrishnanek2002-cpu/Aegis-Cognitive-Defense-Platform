@@ -1,5 +1,6 @@
 """AI Cognitive Photonic Radar - Advanced Defense System"""
 
+import json
 import os
 import time
 
@@ -37,6 +38,11 @@ from src.db import init_db, ensure_admin_exists
 from src.stream_bus import get_producer
 from src.xai_pytorch import grad_cam_pytorch
 from src.cognitive_logic import adaptive_threshold
+from src.demo_scenarios import (
+    run_drone_approach_demo,
+    run_jamming_attack_demo,
+    run_multi_target_demo,
+)
 
 # ===============================
 # ENVIRONMENT SAFETY
@@ -167,6 +173,14 @@ PRIORITY = {
     "Clutter": "Low"
 }
 
+METRICS_JSON_PATH = os.path.join("outputs", "reports", "metrics.json")
+METRIC_IMAGE_PATHS = {
+    "Confusion Matrix": os.path.join("results", "reports", "confusion_matrix.png"),
+    "ROC Curve": os.path.join("results", "reports", "roc_curve.png"),
+    "Precision-Recall Curve": os.path.join("results", "reports", "precision_recall.png"),
+    "Training Curves": os.path.join("results", "reports", "training_history.png"),
+}
+
 # ===============================
 # SESSION STATE
 # ===============================
@@ -197,6 +211,8 @@ if "track_history" not in st.session_state:
     st.session_state.track_history = []
 if "sensitivity_offset" not in st.session_state:
     st.session_state.sensitivity_offset = 0.0
+if "demo_timeline" not in st.session_state:
+    st.session_state.demo_timeline = None
 
 
 # ===============================
@@ -224,6 +240,26 @@ def load_model():
     return radar_model, device
 
 radar_model, device = load_model()
+
+
+@st.cache_data(show_spinner=False)
+def load_metrics_report(path):
+    if not os.path.exists(path):
+        return None, f"Metrics report missing at {path}"
+    try:
+        with open(path, "r", encoding="utf-8") as src:
+            return json.load(src), None
+    except json.JSONDecodeError as exc:
+        return None, f"Metrics report is corrupted: {exc}"
+    except Exception as exc: # pragma: no cover - defensive path
+        return None, f"Unable to load metrics report: {exc}"
+
+
+def display_metric_image(title, path):
+    if os.path.exists(path):
+        st.image(path, caption=title, use_column_width=True)
+    else:
+        st.warning(f"{title} not found at {path}")
 
 # ===============================
 # AUTHENTICATION CONTROL FLOW
@@ -318,8 +354,15 @@ else:
 # ===============================
 st.markdown("## 📡 AI-Enabled Cognitive Photonic Radar")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["Real-Time Analytics", "Explainable AI (XAI)", "Photonic Parameters", "System Logs", "Admin Panel"]
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    [
+        "Real-Time Analytics",
+        "Explainable AI (XAI)",
+        "Photonic Parameters",
+        "Research Metrics",
+        "System Logs",
+        "Admin Panel",
+    ]
 )
 
 # ===============================
@@ -709,6 +752,49 @@ with tab1:
         else:
             st.write("Metadata incomplete")
 
+    st.markdown("### 🎬 Demo Scenarios")
+    demo_col1, demo_col2 = st.columns([3, 1])
+    scenario_choice = demo_col1.selectbox(
+        "Select Scenario",
+        ["Drone Approach", "Jamming Attack", "Multi-Target"],
+        key="demo_scenario_choice",
+    )
+    if demo_col2.button("Run Demo", key="run_demo_button"):
+        if scenario_choice == "Drone Approach":
+            st.session_state.demo_timeline = run_drone_approach_demo()
+        elif scenario_choice == "Jamming Attack":
+            st.session_state.demo_timeline = run_jamming_attack_demo()
+        else:
+            st.session_state.demo_timeline = run_multi_target_demo()
+        st.success(f"{scenario_choice} demo generated")
+
+    timeline_payload = st.session_state.get("demo_timeline")
+    if timeline_payload and timeline_payload.get("timeline"):
+        timeline = timeline_payload["timeline"]
+        table_rows = []
+        for entry in timeline:
+            notes = []
+            if "distance_m" in entry:
+                notes.append(f"distance={entry['distance_m']:.0f}m")
+            if "jammer_level" in entry:
+                notes.append(f"jammer={entry['jammer_level']:.2f}")
+            if "targets" in entry:
+                notes.append(f"targets={len(entry['targets'])}")
+            table_rows.append({
+                "Step": entry.get("step"),
+                "Description": entry.get("description"),
+                "Detections": entry.get("num_detections"),
+                "Tracks": len(entry.get("tracks", {})),
+                "Signal Power": entry.get("signal_power"),
+                "Notes": ", ".join(notes),
+            })
+
+        st.dataframe(pd.DataFrame(table_rows))
+        with st.expander("Latest Step Detail", expanded=False):
+            st.json(timeline[-1])
+    else:
+        st.info("Run a demo scenario to generate timeline data.")
+
 # ===============================
 # TAB 2: XAI
 # ===============================
@@ -776,9 +862,67 @@ with tab3:
     st.plotly_chart(fig_beam, use_container_width=True)
 
 # ===============================
-# TAB 4: LOGS
+# TAB 4: RESEARCH METRICS
 # ===============================
 with tab4:
+    st.subheader("Research Metrics")
+    metrics_data, metrics_error = load_metrics_report(METRICS_JSON_PATH)
+
+    if metrics_error:
+        st.warning(metrics_error)
+    elif metrics_data is not None:
+        metadata = metrics_data.get("metadata", {})
+        macro_avg = metrics_data.get("macro_avg", {})
+        weighted_avg = metrics_data.get("weighted_avg", {})
+
+        def _fmt(value):
+            if isinstance(value, (int, float)):
+                return f"{value:.3f}"
+            return value if value is not None else "—"
+
+        summary_rows = [
+            {"Metric": "Model", "Value": metadata.get("model_name", "—")},
+            {"Metric": "Timestamp", "Value": metadata.get("timestamp", "—")},
+            {"Metric": "Samples", "Value": metadata.get("n_samples", "—")},
+            {"Metric": "Classes", "Value": metadata.get("n_classes", "—")},
+            {"Metric": "Accuracy", "Value": _fmt(metrics_data.get("accuracy"))},
+            {"Metric": "Macro Precision", "Value": _fmt(macro_avg.get("precision"))},
+            {"Metric": "Macro Recall", "Value": _fmt(macro_avg.get("recall"))},
+            {"Metric": "Macro F1", "Value": _fmt(macro_avg.get("f1"))},
+            {"Metric": "Weighted Precision", "Value": _fmt(weighted_avg.get("precision"))},
+            {"Metric": "Weighted Recall", "Value": _fmt(weighted_avg.get("recall"))},
+            {"Metric": "Weighted F1", "Value": _fmt(weighted_avg.get("f1"))},
+        ]
+
+        st.markdown("### Experiment Summary")
+        st.table(pd.DataFrame(summary_rows))
+
+        report = metrics_data.get("classification_report", {})
+        per_class_entries = {k: v for k, v in report.items() if isinstance(v, dict)}
+        if per_class_entries:
+            st.markdown("### Classification Report")
+            report_df = pd.DataFrame(per_class_entries).transpose()
+            st.dataframe(report_df)
+    else:
+        st.info("No metrics data available yet.")
+
+    st.markdown("### Performance Visualizations")
+    col_rm1, col_rm2 = st.columns(2)
+    with col_rm1:
+        display_metric_image("Confusion Matrix", METRIC_IMAGE_PATHS["Confusion Matrix"])
+    with col_rm2:
+        display_metric_image("ROC Curve", METRIC_IMAGE_PATHS["ROC Curve"])
+
+    col_rm3, col_rm4 = st.columns(2)
+    with col_rm3:
+        display_metric_image("Precision-Recall Curve", METRIC_IMAGE_PATHS["Precision-Recall Curve"])
+    with col_rm4:
+        display_metric_image("Training Curves", METRIC_IMAGE_PATHS["Training Curves"])
+
+# ===============================
+# TAB 5: LOGS
+# ===============================
+with tab5:
     st.subheader("Detection History")
 
     # Only add to history if something interesting happened or periodically
@@ -816,9 +960,9 @@ with tab4:
     st.code("".join(read_logs(20)))
 
 # ===============================
-# TAB 5: ADMIN PANEL
+# TAB 6: ADMIN PANEL
 # ===============================
-with tab5:
+with tab6:
     if st.session_state.role != "admin":
         st.warning("⚠️ Access Denied: Admin privileges required.")
     else:
