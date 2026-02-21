@@ -8,13 +8,23 @@ import json
 import logging
 import random
 import shutil
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
-import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
+    print("⚠️  PyTorch not installed. This experiment runner requires PyTorch.")
+    print("Install with: pip install torch torchvision torchaudio")
+    sys.exit(1)
+
 import yaml
 from sklearn.metrics import (
     accuracy_score,

@@ -15,7 +15,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import streamlit as st
-import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 import cv2
 import pandas as pd
 import plotly.graph_objects as go

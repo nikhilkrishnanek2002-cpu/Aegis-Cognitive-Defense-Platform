@@ -10,8 +10,14 @@ Implements:
 """
 
 import numpy as np
-import torch
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn.functional as F
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
+
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
 import time
@@ -47,7 +53,7 @@ class ConfidenceEstimator:
         self.entropy_threshold = entropy_threshold
         self.confidence_threshold = confidence_threshold
     
-    def estimate(self, logits: torch.Tensor) -> Tuple[float, float]:
+    def estimate(self, logits) -> Tuple[float, float]:
         """
         Estimate prediction confidence and entropy.
         
@@ -57,6 +63,10 @@ class ConfidenceEstimator:
         Returns:
             (confidence, entropy)
         """
+        if not HAS_TORCH:
+            # Fallback when PyTorch not available
+            return 0.5, 1.0
+
         # Ensure batch dimension
         if logits.dim() == 1:
             logits = logits.unsqueeze(0)
@@ -115,7 +125,7 @@ class OutOfDistributionDetector:
             'cov': np.cov(embeddings.T)
         }
     
-    def detect(self, logits: torch.Tensor, features: Optional[np.ndarray] = None) -> Tuple[bool, float]:
+    def detect(self, logits, features: Optional[np.ndarray] = None) -> Tuple[bool, float]:
         """
         Detect if input is out-of-distribution.
         
@@ -126,6 +136,9 @@ class OutOfDistributionDetector:
         Returns:
             (is_ood, ood_score)
         """
+        if not HAS_TORCH:
+            return False, 0.0
+
         if self.method == 'entropy':
             return self._entropy_based(logits)
         elif self.method == 'activation' and features is not None:
@@ -133,8 +146,11 @@ class OutOfDistributionDetector:
         else:
             return self._reconstruction_based(logits)
     
-    def _entropy_based(self, logits: torch.Tensor) -> Tuple[bool, float]:
+    def _entropy_based(self, logits) -> Tuple[bool, float]:
         """OOD detection via maximum softmax entropy."""
+        if not HAS_TORCH:
+            return False, 0.0
+
         if logits.dim() == 1:
             logits = logits.unsqueeze(0)
         
@@ -172,8 +188,11 @@ class OutOfDistributionDetector:
         except Exception:
             return False, 0.0
     
-    def _reconstruction_based(self, logits: torch.Tensor) -> Tuple[bool, float]:
+    def _reconstruction_based(self, logits) -> Tuple[bool, float]:
         """OOD detection via softmax distribution spread."""
+        if not HAS_TORCH:
+            return False, 0.0
+
         if logits.dim() == 1:
             logits = logits.unsqueeze(0)
         
@@ -249,7 +268,7 @@ class ModelDisagreementDetector:
 class GradCAMExplainer:
     """Generate Grad-CAM saliency maps for model explainability."""
     
-    def __init__(self, model: torch.nn.Module, target_layer_name: str = 'features'):
+    def __init__(self, model, target_layer_name: str = 'features'):
         """
         Initialize Grad-CAM explainer.
         
@@ -257,6 +276,10 @@ class GradCAMExplainer:
             model: PyTorch model to explain
             target_layer_name: name of layer to visualize (usually last conv layer)
         """
+        if not HAS_TORCH:
+            self.model = None
+            return
+
         self.model = model
         self.target_layer_name = target_layer_name
         self.gradients = None
@@ -265,6 +288,9 @@ class GradCAMExplainer:
     
     def _register_hooks(self):
         """Register forward and backward hooks."""
+        if not HAS_TORCH or not self.model:
+            return
+
         def forward_hook(module, input, output):
             self.activations = output.detach()
         
@@ -278,7 +304,7 @@ class GradCAMExplainer:
                 module.register_backward_hook(backward_hook)
                 break
     
-    def generate(self, input_tensor: torch.Tensor, class_idx: int) -> Optional[np.ndarray]:
+    def generate(self, input_tensor, class_idx: int) -> Optional[np.ndarray]:
         """
         Generate Grad-CAM saliency map.
         
@@ -289,6 +315,9 @@ class GradCAMExplainer:
         Returns:
             saliency map (H, W) or None if generation fails
         """
+        if not HAS_TORCH or not self.model:
+            return None
+
         try:
             # Forward pass
             output = self.model(input_tensor)
@@ -341,12 +370,12 @@ class AIReliabilityHardener:
     - Explainability
     """
     
-    def __init__(self, model: torch.nn.Module, config: Dict = None):
+    def __init__(self, model=None, config: Dict = None):
         """
         Initialize AI hardening system.
         
         Args:
-            model: PyTorch model to harden
+            model: PyTorch model to harden (optional)
             config: dict with thresholds and settings
         """
         self.config = config or {}
@@ -367,8 +396,8 @@ class AIReliabilityHardener:
             threshold=self.config.get('disagreement_threshold', 0.3)
         )
         
-        self.explainer = GradCAMExplainer(model)
-        
+        self.explainer = GradCAMExplainer(model) if model else None
+
         self.decision_log = []
         self.labels = []
     
@@ -377,7 +406,7 @@ class AIReliabilityHardener:
         self.labels = labels
     
     def infer(self, 
-             input_tensor: torch.Tensor,
+             input_tensor,
              return_saliency: bool = False,
              device: str = 'cpu') -> AIDecision:
         """
@@ -391,6 +420,19 @@ class AIReliabilityHardener:
         Returns:
             AIDecision with confidence, OOD detection, and explainability
         """
+        if not HAS_TORCH or not self.model:
+            # Return a dummy decision when torch is not available
+            return AIDecision(
+                predicted_class="Unknown",
+                confidence=0.0,
+                prediction_entropy=0.0,
+                is_ood=True,
+                ood_score=1.0,
+                is_reliable=False,
+                reliability_reasons=["PyTorch not available"],
+                audit_log="[DECISION] PyTorch not available"
+            )
+
         input_tensor = input_tensor.to(device)
         
         # Ensure batch dimension
@@ -426,7 +468,7 @@ class AIReliabilityHardener:
         
         # Generate saliency map if requested
         saliency_map = None
-        if return_saliency:
+        if return_saliency and self.explainer:
             saliency_map = self.explainer.generate(input_tensor, predicted_idx)
         
         # Compile reasons
@@ -490,6 +532,10 @@ class AIReliabilityHardener:
 
 # Example usage
 if __name__ == "__main__":
+    if not HAS_TORCH:
+        print("PyTorch not installed. This module requires PyTorch for full functionality.")
+        exit(0)
+
     print("=== AI Reliability Hardening Demo ===\n")
     
     # Create dummy model

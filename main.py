@@ -13,16 +13,24 @@ cfg = get_config()
 init_logging(cfg)
 _startup = run_startup_checks()
 
-import torch
-# prefer CPU if startup checks show no GPU
-use_cuda = _startup.get("gpu_available", False)
-device = torch.device("cuda" if use_cuda else "cpu")
-print(f"Using device: {device}")
-log_event(f"Using device: {device}")
+try:
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+    from torch.utils.data import DataLoader, TensorDataset
+    HAS_TORCH = True
 
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
+    # prefer CPU if startup checks show no GPU
+    use_cuda = _startup.get("gpu_available", False)
+    device = torch.device("cuda" if use_cuda else "cpu")
+    print(f"Using device: {device}")
+    log_event(f"Using device: {device}")
+except ImportError:
+    HAS_TORCH = False
+    print("⚠️  PyTorch not installed. This training script requires PyTorch.")
+    print("Install with: pip install torch torchvision torchaudio")
+    sys.exit(1)
+
 import numpy as np
 from src.feature_extractor import get_all_features
 from src.signal_generator import generate_radar_signal

@@ -10,7 +10,16 @@ import json
 import argparse
 import logging
 import numpy as np
-import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
+    print("⚠️  PyTorch not installed. This experiment runner requires PyTorch.")
+    print("Install with: pip install torch torchvision torchaudio")
+    sys.exit(1)
+
 import yaml
 from pathlib import Path
 from datetime import datetime

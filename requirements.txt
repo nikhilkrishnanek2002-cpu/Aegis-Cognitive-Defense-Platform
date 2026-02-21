@@ -3,15 +3,28 @@ numpy
 scipy
 matplotlib
 streamlit
+
+# Web API Dependencies
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# AI/ML Libraries
 torch
 torchvision
 torchaudio
 opencv-python
+scikit-learn
+
+# Radar/Signal Processing
 pyrtlsdr
+
+# Data Processing & Visualization
 kafka-python
 psutil
 seaborn
-scikit-learn
 plotly
 
 # Configuration & logging helpers

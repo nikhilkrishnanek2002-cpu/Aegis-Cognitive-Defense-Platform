@@ -41,20 +41,57 @@ def error(msg): print(f"  {RED}❌ {msg}{RESET}")
 
 def check_python_deps():
     step("Checking Python dependencies...")
-    required = {
-        "fastapi": "fastapi", "uvicorn": "uvicorn",
-        "torch": "torch", "numpy": "numpy",
-        "scipy": "scipy", "jose": "python-jose[cryptography]",
-        "passlib": "passlib[bcrypt]", "multipart": "python-multipart",
+
+    # Core dependencies required for the API server
+    core_required = {
+        "fastapi": "fastapi",
+        "uvicorn": "uvicorn",
+        "numpy": "numpy",
+        "scipy": "scipy",
+        "jose": "python-jose[cryptography]",
+        "passlib": "passlib[bcrypt]",
+        "multipart": "python-multipart",
     }
-    missing = [pkg for imp, pkg in required.items() if not _can_import(imp)]
-    if missing:
-        warn(f"Installing: {', '.join(missing)}")
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q"] + missing,
-            check=True,
-        )
-    ok("Python dependencies ready.")
+
+    # Optional dependencies for AI features
+    optional_deps = {
+        "torch": "torch",
+    }
+
+    # Check core dependencies
+    missing_core = [pkg for imp, pkg in core_required.items() if not _can_import(imp)]
+    missing_optional = [pkg for imp, pkg in optional_deps.items() if not _can_import(imp)]
+
+    if missing_core:
+        warn(f"Missing core dependencies: {', '.join(missing_core)}")
+        step("Attempting to install core dependencies...")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-q"] + missing_core,
+                check=True,
+                timeout=300,
+            )
+            ok("Core dependencies installed.")
+        except subprocess.TimeoutExpired:
+            error("Installation timed out. Please run manually: pip install -r requirements.txt")
+            return False
+        except subprocess.CalledProcessError as e:
+            error(f"Failed to install dependencies: {e}")
+            warn("Please manually install: pip install fastapi uvicorn numpy scipy python-jose[cryptography] passlib[bcrypt] python-multipart")
+            return False
+        except Exception as e:
+            error(f"Unexpected error: {e}")
+            return False
+    else:
+        ok("Core dependencies ready.")
+
+    if missing_optional:
+        warn(f"Optional dependencies not installed: {', '.join(missing_optional)}")
+        warn("AI model features will be disabled. To enable, run: pip install torch")
+    else:
+        ok("Optional AI dependencies available.")
+
+    return True
 
 
 def _can_import(name):
@@ -67,16 +104,45 @@ def _can_import(name):
 
 def check_npm_deps():
     if not os.path.isdir(FRONTEND_DIR):
+        warn("Frontend directory not found. Skipping React frontend.")
         return False
+
+    # Check if npm is available
+    try:
+        result = subprocess.run(["npm", "--version"], capture_output=True, timeout=5)
+        if result.returncode != 0:
+            warn("npm not found. Skipping React frontend.")
+            return False
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        warn("npm not available. Skipping React frontend.")
+        return False
+
     if not os.path.isdir(NODE_MODULES):
         step("Running npm install (first time only, ~30s)...")
-        r = subprocess.run(["npm", "install"], cwd=FRONTEND_DIR,
-                           capture_output=True)
-        if r.returncode != 0:
-            error("npm install failed. Is Node.js 18+ installed?")
-            print(r.stderr.decode())
+        try:
+            r = subprocess.run(
+                ["npm", "install"],
+                cwd=FRONTEND_DIR,
+                capture_output=True,
+                timeout=120
+            )
+            if r.returncode != 0:
+                error("npm install failed.")
+                stderr = r.stderr.decode()
+                if "Disk quota exceeded" in stderr or "ENOSPC" in stderr:
+                    warn("Disk space issue detected. Skipping frontend.")
+                elif "Node.js" in stderr:
+                    warn("Node.js 18+ required. Skipping frontend.")
+                else:
+                    print(f"  Error: {stderr[:200]}")
+                return False
+            ok("npm packages installed.")
+        except subprocess.TimeoutExpired:
+            warn("npm install timed out. Skipping frontend.")
             return False
-        ok("npm packages installed.")
+        except Exception as e:
+            warn(f"npm install failed: {e}. Skipping frontend.")
+            return False
     else:
         ok("npm packages ready.")
     return True
@@ -97,7 +163,10 @@ def wait_for_port(port, timeout=30):
 def launch():
     banner()
 
-    check_python_deps()
+    if not check_python_deps():
+        error("Failed to install core dependencies. Cannot continue.")
+        sys.exit(1)
+
     has_frontend = check_npm_deps()
     print()
 
@@ -109,7 +178,9 @@ def launch():
         else:
             step("Running on CPU")
     except ImportError:
-        pass
+        step("Running on CPU (PyTorch not installed)")
+    except Exception as e:
+        step(f"Running on CPU (GPU check failed: {e})")
 
     print(f"\n  {BOLD}Starting servers...{RESET}\n")
 
@@ -142,7 +213,7 @@ def launch():
         step(f"Starting React frontend  → http://localhost:{react_port}")
         react_log = open(os.path.join(ROOT, "react_dev.log"), "w")
         react_proc = subprocess.Popen(
-            ["npm", "run", "dev", "--", "--port", str(react_port), "--strictPort"],
+            ["npm", "run", "dev", "--", "--port", str(react_port)],
             cwd=FRONTEND_DIR,
             stdin=subprocess.DEVNULL,
             stdout=react_log,
@@ -154,28 +225,40 @@ def launch():
             ok(f"React dashboard ready    → http://localhost:{react_port}")
         else:
             # Check if it started on a different port
-            for alt in [3001, 3002, 3003]:
+            for alt in [3001, 3002, 3003, 5173]:
                 if wait_for_port(alt, timeout=2):
                     react_port = alt
                     warn(f"React started on alternate port {react_port}")
                     break
             else:
                 warn("React taking long to start — check react_dev.log")
+    else:
+        warn("React frontend not available. API only mode.")
+        react_port = None
 
     print()
     print(f"  {GREEN}{BOLD}{'━'*50}{RESET}")
-    print(f"  {BOLD}  🌐 Dashboard : http://localhost:{react_port}{RESET}")
+    if react_port:
+        print(f"  {BOLD}  🌐 Dashboard : http://localhost:{react_port}{RESET}")
     print(f"  {BOLD}  📚 API Docs  : http://localhost:8000/docs{RESET}")
     print(f"  {BOLD}  🔑 Login     : admin / admin123{RESET}")
     print(f"  {GREEN}{BOLD}{'━'*50}{RESET}")
     print(f"\n  Press {BOLD}Ctrl+C{RESET} to stop all servers.\n")
 
     # Auto-open browser
-    time.sleep(1)
-    try:
-        webbrowser.open(f"http://localhost:{react_port}")
-    except Exception:
-        pass
+    if react_port:
+        time.sleep(1)
+        try:
+            webbrowser.open(f"http://localhost:{react_port}")
+        except Exception:
+            pass
+    else:
+        # Open API docs if no frontend
+        time.sleep(1)
+        try:
+            webbrowser.open("http://localhost:8000/docs")
+        except Exception:
+            pass
 
     # ── Shutdown handler ──────────────────────────────────────────────────────
     def shutdown(sig=None, frame=None):
