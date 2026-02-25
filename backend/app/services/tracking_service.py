@@ -1,7 +1,7 @@
 """Multi-target tracking service (Kalman filter + Hungarian algorithm)."""
 
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Any
 from datetime import datetime
 from app.models.schemas import DetectionResult, TrackedTarget
 from app.core.logging import tracking_logger
@@ -67,6 +67,22 @@ class TrackingService:
     def __init__(self):
         self.config = get_config()
         self.tracks: Dict[str, KalmanTracker] = {}
+        self.initialized = True
+        self.initialization_error = None
+    
+    async def initialize(self) -> bool:
+        """Initialize service."""
+        try:
+            tracking_logger.info("Initializing tracking service...")
+            if self.config is None:
+                self.initialization_error = "Config is None"
+                return False
+            tracking_logger.info("✓ Tracking service ready")
+            return True
+        except Exception as e:
+            self.initialization_error = str(e)
+            tracking_logger.error(f"Tracking service init failed: {e}")
+            return False
     
     @timed_async("tracking")
     async def update_tracks(self, detections: List[DetectionResult]) -> List[TrackedTarget]:
@@ -80,6 +96,9 @@ class TrackingService:
         4. Create new tracks for unmatched detections
         5. Remove old tracks
         """
+        if not self.initialized:
+            tracking_logger.warning("Tracking service not ready")
+            return []
         
         # Predict all tracks
         for track in self.tracks.values():
@@ -140,6 +159,15 @@ class TrackingService:
     async def get_active_tracks(self) -> List[TrackedTarget]:
         """Get all active tracks."""
         return [track.to_tracked_target() for track in self.tracks.values()]
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Get service status."""
+        return {
+            "name": "tracking",
+            "initialized": self.initialized,
+            "error": self.initialization_error,
+            "active_tracks": len(self.tracks)
+        }
 
 
 def get_tracking_service() -> TrackingService:

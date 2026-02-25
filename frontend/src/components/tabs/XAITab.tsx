@@ -98,16 +98,16 @@ export default function XAITab() {
                                     type: 'heatmap',
                                     colorscale: 'Hot',
                                     showscale: true,
-                                    colorbar: { title: 'Influence' },
+                                    colorbar: { title: { text: 'Influence' } },
                                 }]}
                                 layout={{
-                                    title: `Grad-CAM: ${gradcamData.target_class}`,
+                                    title: { text: `Grad-CAM: ${gradcamData.target_class}` },
                                     xaxis: { title: 'X Pixels' },
                                     yaxis: { title: 'Y Pixels' },
                                     plot_bgcolor: 'rgba(0,0,0,0)',
                                     paper_bgcolor: 'rgba(0,0,0,0)',
                                     font: { color: '#94a3b8' },
-                                }}
+                                } as any}
                                 style={{ width: '100%', height: 500 }}
                             />
                         </div>

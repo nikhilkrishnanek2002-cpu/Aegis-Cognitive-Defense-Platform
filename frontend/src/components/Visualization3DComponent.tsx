@@ -69,7 +69,7 @@ export default function Visualization3DComponent() {
                         plot_bgcolor: 'rgba(0,0,0,0)',
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         font: { color: '#94a3b8' },
-                    }}
+                    } as any}
                     style={{ width: '100%', height: 500 }}
                 />
             </div>
@@ -101,7 +101,7 @@ export default function Visualization3DComponent() {
                         plot_bgcolor: 'rgba(0,0,0,0)',
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         font: { color: '#94a3b8' },
-                    }}
+                    } as any}
                     style={{ width: '100%', height: 500 }}
                 />
             </div>
@@ -127,7 +127,7 @@ export default function Visualization3DComponent() {
                         plot_bgcolor: 'rgba(0,0,0,0)',
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         font: { color: '#94a3b8' },
-                    }}
+                    } as any}
                     style={{ width: '100%', height: 500 }}
                 />
             </div>
@@ -149,7 +149,7 @@ export default function Visualization3DComponent() {
                         plot_bgcolor: 'rgba(0,0,0,0)',
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         font: { color: '#94a3b8' },
-                    }}
+                    } as any}
                     style={{ width: '100%', height: 400 }}
                 />
             </div>

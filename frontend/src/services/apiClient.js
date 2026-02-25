@@ -1,11 +1,12 @@
 import axios from 'axios'
+import { envConfig } from '../config/envConfig'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-const API_PATH = `${API_BASE}/api`
+// Use environment configuration for API URL
+const API_URL = envConfig.getApiUrl()
 
 // Create axios instance with default config
 const apiClient = axios.create({
-  baseURL: API_PATH,
+  baseURL: API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

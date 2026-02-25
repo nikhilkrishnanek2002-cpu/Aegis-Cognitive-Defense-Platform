@@ -7,9 +7,12 @@ from app.services.detection_service import get_detection_service
 from app.services.tracking_service import get_tracking_service
 from app.services.threat_service import get_threat_service
 from app.services.ew_service import get_ew_service
-from app.engine.controller import _controller
+from app.services.metrics_service import get_metrics_collector
+from app.core.metrics_store import get_metrics_store
+from app.engine import _controller
 from app.core.performance import timer
 from app.api.websocket.radar_ws_optimized import get_websocket_stats
+import psutil
 
 router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 
@@ -23,7 +26,8 @@ async def get_radar_metrics():
     return {
         "scan_count": radar_svc.scan_count,
         "last_scan": radar_svc.last_scan_time.isoformat() if radar_svc.last_scan_time else None,
-        "signal_quality": quality
+        "signal_quality": quality,
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
@@ -45,7 +49,8 @@ async def get_tracking_metrics():
     return {
         "active_tracks": len(tracks),
         "total_tracks_history": sum(1 for t in tracking_svc.tracks.values()),
-        "tracks": [t.dict() for t in tracks]
+        "tracks": [t.dict() for t in tracks],
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
@@ -58,7 +63,8 @@ async def get_threat_metrics():
     return {
         "critical_threats": len(critical),
         "threat_history_count": len(threat_svc.threat_history),
-        "critical_threat_ids": [t.track_id for t in critical]
+        "critical_threat_ids": [t.track_id for t in critical],
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
@@ -76,23 +82,47 @@ async def get_pipeline_metrics():
     """Get pipeline execution metrics."""
     if _controller:
         return await _controller.get_status()
-    return {"error": "Controller not initialized"}
+    return {
+        "running": False,
+        "error": "Controller not initialized",
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 
 @router.get("/system")
 async def get_system_metrics():
-    """Get overall system metrics."""
-    if not _controller:
-        return {"error": "System not ready"}
-    
-    pipeline_status = await _controller.get_status()
-    
-    # Aggregate metrics from all services
-    return {
-        "timestamp": datetime.utcnow().isoformat(),
-        "pipeline": pipeline_status,
-        "uptime_seconds": pipeline_status.get("uptime_seconds", 0)
-    }
+    """Get overall system metrics with guaranteed data."""
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+        
+        if _controller:
+            pipeline_status = await _controller.get_status()
+        else:
+            pipeline_status = {"running": False, "cycle_count": 0}
+        
+        # Aggregate metrics from all services
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "system_status": "operational",
+            "cpu_percent": float(cpu_percent),
+            "memory_percent": float(memory.percent),
+            "memory_mb": float(memory.used / (1024 * 1024)),
+            "pipeline": pipeline_status,
+            "uptime_seconds": pipeline_status.get("uptime_seconds", 0)
+        }
+    except Exception as e:
+        # Fallback response
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "system_status": "unknown",
+            "cpu_percent": 0.0,
+            "memory_percent": 0.0,
+            "memory_mb": 0.0,
+            "pipeline": {"running": False},
+            "uptime_seconds": 0,
+            "error": str(e)
+        }
 
 
 @router.get("/performance")
@@ -110,34 +140,83 @@ async def get_performance_summary():
     """Get high-level performance summary."""
     stats = timer.get_all_stats()
     
+    # Ensure all stages have default values
+    stages = {
+        "radar_scan_ms": stats.get("radar_scan", {}).get("latest", 0),
+        "detection_ms": stats.get("detection", {}).get("latest", 0),
+        "tracking_ms": stats.get("tracking", {}).get("latest", 0),
+        "threat_assessment_ms": stats.get("threat_assessment", {}).get("latest", 0),
+        "ew_response_ms": stats.get("ew_response", {}).get("latest", 0),
+        "websocket_send_ms": stats.get("websocket_send", {}).get("latest", 0),
+        "total_cycle_ms": stats.get("total_cycle", {}).get("latest", 0),
+        "avg_cycle_ms": stats.get("total_cycle", {}).get("avg", 0)
+    }
+    
     return {
         "timestamp": datetime.utcnow().isoformat(),
-        "radar_scan_ms": stats["radar_scan"]["latest"],
-        "detection_ms": stats["detection"]["latest"],
-        "tracking_ms": stats["tracking"]["latest"],
-        "threat_assessment_ms": stats["threat_assessment"]["latest"],
-        "ew_response_ms": stats["ew_response"]["latest"],
-        "websocket_send_ms": stats["websocket_send"]["latest"],
-        "total_cycle_ms": stats["total_cycle"]["latest"],
-        "avg_cycle_ms": stats["total_cycle"]["avg"]
+        **stages
     }
 
 
 @router.get("/health/cpu-memory")
 async def get_cpu_memory():
     """Get CPU and memory usage."""
-    import psutil
-    
     try:
         process = psutil.Process()
         memory_info = process.memory_info()
         cpu_percent = process.cpu_percent(interval=0.1)
         
         return {
-            "cpu_percent": cpu_percent,
-            "memory_mb": memory_info.rss / (1024 * 1024),
-            "memory_percent": process.memory_percent(),
-            "num_threads": process.num_threads()
+            "cpu_percent": float(cpu_percent),
+            "memory_mb": float(memory_info.rss / (1024 * 1024)),
+            "memory_percent": float(process.memory_percent()),
+            "num_threads": process.num_threads(),
+            "timestamp": datetime.utcnow().isoformat()
         }
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "cpu_percent": 0.0,
+            "memory_mb": 0.0,
+            "memory_percent": 0.0,
+            "num_threads": 0,
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }
+
+
+@router.get("/live")
+async def get_live_metrics():
+    """Get live rolling metrics from current pipeline cycle."""
+    metrics_store = get_metrics_store()
+    latest = metrics_store.get_latest_metrics()
+    
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "latest": latest,
+        "metrics": latest
+    }
+
+
+@router.get("/live/history")
+async def get_metrics_history(limit: int = 100):
+    """Get metrics history for graphing."""
+    metrics_store = get_metrics_store()
+    history = metrics_store.get_metrics_history(limit)
+    
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "count": len(history),
+        "data": history
+    }
+
+
+@router.get("/live/summary")
+async def get_metrics_summary():
+    """Get metrics summary statistics."""
+    metrics_store = get_metrics_store()
+    summary = metrics_store.get_summary()
+    
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        **summary
+    }

@@ -1,7 +1,7 @@
 """Threat assessment and evaluation service."""
 
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Any
 from datetime import datetime
 from app.models.schemas import TrackedTarget, Threat, ThreatLevel, TargetType
 from app.core.logging import threat_logger
@@ -93,6 +93,22 @@ class ThreatService:
         self.engine = ThreatAssessmentEngine()
         self.threat_history: List[Threat] = []
         self.critical_threats: List[str] = []
+        self.initialized = True
+        self.initialization_error = None
+    
+    async def initialize(self) -> bool:
+        """Initialize service."""
+        try:
+            threat_logger.info("Initializing threat service...")
+            if self.engine is None:
+                self.initialization_error = "Assessment engine is None"
+                return False
+            threat_logger.info("✓ Threat service ready")
+            return True
+        except Exception as e:
+            self.initialization_error = str(e)
+            threat_logger.error(f"Threat service init failed: {e}")
+            return False
     
     @timed_async("threat_assessment")
     async def assess_threats(self, tracks: List[TrackedTarget]) -> List[Threat]:
@@ -101,41 +117,49 @@ class ThreatService:
         
         Returns list of threats, filtered by threat threshold.
         """
+        if not self.initialized or self.engine is None:
+            threat_logger.warning("Threat service not ready, returning empty threats")
+            return []
+        
         threats = []
         
         for track in tracks:
-            threat_score = self.engine.calculate_threat_score(track)
-            threat_level = self.engine.classify_threat_level(threat_score)
-            tti = self.engine.estimate_time_to_impact(track)
-            
-            threat = Threat(
-                track_id=track.track_id,
-                threat_level=threat_level,
-                threat_score=threat_score,
-                target_type=track.target_type,
-                position=track.position,
-                velocity=track.velocity,
-                time_to_impact_s=tti if tti != float("inf") else None,
-                intercept_point=self._compute_intercept_point(track),
-                timestamp=datetime.utcnow(),
-                confidence=track.confidence
-            )
-            
-            threats.append(threat)
-            self.threat_history.append(threat)
-            
-            # Track critical threats
-            if threat_level == ThreatLevel.CRITICAL:
-                if track.track_id not in self.critical_threats:
-                    self.critical_threats.append(track.track_id)
-                    threat_logger.log_event(
-                        "critical_threat_detected",
-                        "threat_service",
-                        {"track_id": track.track_id, "threat_score": threat_score},
-                        level="ERROR"
-                    )
-            elif track.track_id in self.critical_threats:
-                self.critical_threats.remove(track.track_id)
+            try:
+                threat_score = self.engine.calculate_threat_score(track)
+                threat_level = self.engine.classify_threat_level(threat_score)
+                tti = self.engine.estimate_time_to_impact(track)
+                
+                threat = Threat(
+                    track_id=track.track_id,
+                    threat_level=threat_level,
+                    threat_score=threat_score,
+                    target_type=track.target_type,
+                    position=track.position,
+                    velocity=track.velocity,
+                    time_to_impact_s=tti if tti != float("inf") else None,
+                    intercept_point=self._compute_intercept_point(track),
+                    timestamp=datetime.utcnow(),
+                    confidence=track.confidence
+                )
+                
+                threats.append(threat)
+                self.threat_history.append(threat)
+                
+                # Track critical threats
+                if threat_level == ThreatLevel.CRITICAL:
+                    if track.track_id not in self.critical_threats:
+                        self.critical_threats.append(track.track_id)
+                        threat_logger.log_event(
+                            "critical_threat_detected",
+                            "threat_service",
+                            {"track_id": track.track_id, "threat_score": threat_score},
+                            level="ERROR"
+                        )
+                elif track.track_id in self.critical_threats:
+                    self.critical_threats.remove(track.track_id)
+            except Exception as e:
+                threat_logger.error("Threat assessment error for track %s: %s", track.track_id, e)
+                continue
         
         threat_logger.log_event(
             "threat_assessment_complete",
@@ -169,6 +193,16 @@ class ThreatService:
     async def get_critical_threats(self) -> List[Threat]:
         """Get all current critical threats."""
         return [t for t in self.threat_history if t.threat_level == ThreatLevel.CRITICAL]
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Get service status."""
+        return {
+            "name": "threat",
+            "initialized": self.initialized,
+            "error": self.initialization_error,
+            "threat_count": len(self.threat_history),
+            "critical_threats": len(self.critical_threats)
+        }
 
 
 def get_threat_service() -> ThreatService:

@@ -62,7 +62,7 @@ export default function PerformanceChartsComponent() {
                             plot_bgcolor: 'rgba(0,0,0,0)',
                             paper_bgcolor: 'rgba(0,0,0,0)',
                             font: { color: '#94a3b8' },
-                        }}
+                        } as any}
                         style={{ width: '100%', height: 400 }}
                     />
                 </div>
@@ -98,7 +98,7 @@ export default function PerformanceChartsComponent() {
                             plot_bgcolor: 'rgba(0,0,0,0)',
                             paper_bgcolor: 'rgba(0,0,0,0)',
                             font: { color: '#94a3b8' },
-                        }}
+                        } as any}
                         style={{ width: '100%', height: 400 }}
                     />
                 </div>
@@ -126,7 +126,7 @@ export default function PerformanceChartsComponent() {
                             plot_bgcolor: 'rgba(0,0,0,0)',
                             paper_bgcolor: 'rgba(0,0,0,0)',
                             font: { color: '#94a3b8' },
-                        }}
+                        } as any}
                         style={{ width: '100%', height: 400 }}
                     />
                 </div>
@@ -160,7 +160,7 @@ export default function PerformanceChartsComponent() {
                             plot_bgcolor: 'rgba(0,0,0,0)',
                             paper_bgcolor: 'rgba(0,0,0,0)',
                             font: { color: '#94a3b8' },
-                        }}
+                        } as any}
                         style={{ width: '100%', height: 400 }}
                     />
                 </div>

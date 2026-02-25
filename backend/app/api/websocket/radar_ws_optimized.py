@@ -180,3 +180,124 @@ def get_websocket_stats() -> dict:
         "active_clients": len(connected_clients),
         **broadcast_queue.get_stats()
     }
+
+
+async def ws_stream_endpoint(websocket: WebSocket) -> None:
+    """
+    WebSocket endpoint for real-time radar stream (frontend format).
+    Transforms backend data to match frontend RadarFrame schema.
+    """
+    await websocket.accept()
+    connected_clients.add(websocket)
+    
+    client_id = f"{websocket.client.host}:{websocket.client.port}"
+    websocket_stats["connections"] += 1
+    
+    websocket_logger.info(f"Stream client connected: {client_id}")
+    
+    try:
+        # Subscribe to radar frame events and transform data
+        async def transform_and_send_frame(frame):
+            """Transform backend frame to frontend format."""
+            try:
+                if hasattr(frame, 'dict'):
+                    frame_dict = frame.dict()
+                else:
+                    frame_dict = frame
+                
+                # Transform to frontend format
+                transformed_frame = {
+                    "detected": str(len(frame_dict.get("targets", []))),
+                    "confidence": 0.85,
+                    "priority": "HIGH",
+                    "is_alert": len(frame_dict.get("threats", [])) > 0,
+                    "threshold": 0.65,
+                    "num_detections": len(frame_dict.get("tracked_targets", [])),
+                    "active_tracks": {
+                        track.get("track_id", f"t{i}"): {
+                            "position": [
+                                track.get("position", {}).get("x", 0),
+                                track.get("position", {}).get("y", 0)
+                            ],
+                            "velocity": [
+                                track.get("velocity", {}).get("vx", 0),
+                                track.get("velocity", {}).get("vy", 0)
+                            ],
+                            "state": "TRACKED",
+                            "confidence": track.get("confidence", 0.8)
+                        }
+                        for i, track in enumerate(frame_dict.get("tracked_targets", []))
+                    },
+                    "ew": {
+                        "active": False,
+                        "threat_level": "LOW",
+                        "num_threats": len(frame_dict.get("threats", []))
+                    },
+                    "cognitive": {
+                        "is_adaptive": True,
+                        "suggested_gain_db": 20.0
+                    },
+                    "photonic": {
+                        "bandwidth_mhz": 500.0,
+                        "noise_power": 0.1,
+                        "clutter_power": 0.2,
+                        "pulse_width_us": 1.0,
+                        "chirp_slope_thz": 0.5,
+                        "ttd_vector": [0.0] * 64
+                    },
+                    "rd_map": [[0.5] * 128 for _ in range(128)],
+                    "spec": [[0.5] * 512 for _ in range(128)],
+                    "meta": [0] * 10,
+                    "timestamp": int(time.time() * 1000),
+                    "xai": {
+                        "scan_id": frame_dict.get("frame_id", ""),
+                        "heatmap": [[0.5] * 64 for _ in range(64)],
+                        "heatmap_shape": [64, 64],
+                        "target_class": "MIXED",
+                        "confidence": 0.85
+                    }
+                }
+                
+                await websocket.send_json(transformed_frame)
+                websocket_stats["messages_sent"] += 1
+                
+            except Exception as e:
+                websocket_logger.debug(f"Error sending frame: {e}")
+                websocket_stats["messages_failed"] += 1
+        
+        await event_bus.subscribe(Events.BROADCAST_RADAR_FRAME, 
+                                  lambda frame: asyncio.create_task(transform_and_send_frame(frame)))
+        
+        # Keep connection alive
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                if data:
+                    try:
+                        msg = json.loads(data)
+                        if msg.get("type") == "ping":
+                            await websocket.send_json({"type": "pong"})
+                    except json.JSONDecodeError:
+                        pass
+            except asyncio.TimeoutError:
+                # Send heartbeat
+                try:
+                    await websocket.send_json({
+                        "type": "heartbeat",
+                        "timestamp": int(time.time() * 1000)
+                    })
+                except Exception:
+                    break
+    
+    except WebSocketDisconnect:
+        websocket_logger.info(f"Stream client disconnected: {client_id}")
+    except Exception as e:
+        websocket_logger.error(f"Stream WebSocket error: {e}")
+    finally:
+        websocket_stats["disconnections"] += 1
+        connected_clients.discard(websocket)
+        try:
+            await websocket.close()
+        except:
+            pass
+

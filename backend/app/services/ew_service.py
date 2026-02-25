@@ -1,7 +1,7 @@
 """Electronic Warfare (EW) detection and response service."""
 
 import numpy as np
-from typing import List
+from typing import List, Dict, Any
 from datetime import datetime
 from app.models.schemas import EWSignal, EWResponse, Threat, ThreatLevel
 from app.core.logging import ew_logger
@@ -90,6 +90,22 @@ class EWService:
         self.engine = EWResponseEngine()
         self.active_signals: List[EWSignal] = []
         self.response_history: List[EWResponse] = []
+        self.initialized = True
+        self.initialization_error = None
+    
+    async def initialize(self) -> bool:
+        """Initialize service."""
+        try:
+            ew_logger.info("Initializing EW service...")
+            if self.engine is None:
+                self.initialization_error = "Response engine is None"
+                return False
+            ew_logger.info("✓ EW service ready")
+            return True
+        except Exception as e:
+            self.initialization_error = str(e)
+            ew_logger.error(f"EW service init failed: {e}")
+            return False
     
     async def detect_ew_signals(self) -> List[EWSignal]:
         """
@@ -97,6 +113,10 @@ class EWService:
         
         In production: continuously monitor spectrum, analyze modulation, track emitters.
         """
+        if not self.initialized:
+            ew_logger.warning("EW service not ready")
+            return []
+        
         signals = []
         
         # Simulate random EW signal detections
@@ -128,16 +148,21 @@ class EWService:
         """
         Generate EW countermeasure responses for active threats.
         """
+        if not self.initialized or self.engine is None:
+            ew_logger.warning("EW service not ready")
+            return []
+        
         responses = []
         
         for threat in threats:
-            if self.engine.should_trigger_response(threat):
-                response_type = self.engine.select_response(threat)
-                params = self.engine.compute_response_parameters(threat)
-                
-                response = EWResponse(
-                    response_id=str(uuid.uuid4())[:8],
-                    signal_id=threat.track_id,
+            try:
+                if self.engine.should_trigger_response(threat):
+                    response_type = self.engine.select_response(threat)
+                    params = self.engine.compute_response_parameters(threat)
+                    
+                    response = EWResponse(
+                        response_id=str(uuid.uuid4())[:8],
+                        signal_id=threat.track_id,
                     response_type=response_type,
                     frequency_mhz=params["frequency_mhz"],
                     power_dbm=params["power_dbm"],
@@ -158,6 +183,9 @@ class EWService:
                     },
                     level="WARNING"
                 )
+            except Exception as e:
+                ew_logger.error("EW response generation error for threat %s: %s", threat.track_id, e)
+                continue
         
         return responses
     
@@ -166,6 +194,16 @@ class EWService:
         return {
             "active_signals": len(self.active_signals),
             "recent_responses": len([r for r in self.response_history if (datetime.utcnow() - r.timestamp).total_seconds() < 300]),
+            "total_responses": len(self.response_history)
+        }
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Get service status."""
+        return {
+            "name": "ew",
+            "initialized": self.initialized,
+            "error": self.initialization_error,
+            "active_signals": len(self.active_signals),
             "total_responses": len(self.response_history)
         }
 

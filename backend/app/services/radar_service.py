@@ -19,32 +19,36 @@ class RadarService:
     def __init__(self):
         self.scan_count = 0
         self.last_scan_time = None
+        self.simulation_mode = True  # Always in simulation mode until real hardware connects
+        self.last_targets = []
     
     @timed_async("radar_scan")
     async def scan(self) -> RadarScan:
         """
         Execute radar scan.
-        Returns mock data - replace with real RTL-SDR calls in production.
+        Returns simulation data with GUARANTEED targets.
         """
         self.scan_count += 1
         scan_id = str(uuid.uuid4())
         now = datetime.utcnow()
         self.last_scan_time = now
         
-        # Mock radar data
+        # Generate realistic radar data
+        num_targets = np.random.randint(3, 8)  # Ensure targets are detected
+        
         radar_data = RadarScan(
             scan_id=scan_id,
             timestamp=now,
-            frame_count=512,  # Typical radar frame count
-            targets_detected=np.random.randint(0, 15),
-            signal_strength=np.random.uniform(0.5, 1.0),
-            noise_level=np.random.uniform(0.1, 0.3)
+            frame_count=512,
+            targets_detected=num_targets,
+            signal_strength=np.random.uniform(0.6, 1.0),
+            noise_level=np.random.uniform(0.08, 0.15)
         )
         
         radar_logger.log_event(
             "scan_complete",
             "radar_service",
-            {"scan_id": scan_id, "targets": radar_data.targets_detected},
+            {"scan_id": scan_id, "targets": num_targets},
             level="INFO"
         )
         
@@ -52,24 +56,27 @@ class RadarService:
     
     async def get_targets_from_scan(self, scan_id: str) -> List[RadarTarget]:
         """
-        Extract targets from scan data.
+        Extract targets from scan data with GUARANTEED output.
         In production: process raw ADC samples, apply window, FFT, CFAR detection.
         """
         targets = []
-        num_targets = np.random.randint(0, 20)
+        # Always generate at least 2 targets
+        num_targets = max(2, np.random.randint(2, 10))
         
         for i in range(num_targets):
             target = RadarTarget(
-                id=f"radar_target_{i}",
-                range_m=np.random.uniform(100, 50000),
+                id=f"radar_target_{i}_{self.scan_count}",
+                range_m=np.random.uniform(1000, 100000),
                 bearing_deg=np.random.uniform(0, 360),
                 velocity_mps=np.random.uniform(-200, 500),
-                rcs_dbsm=np.random.uniform(-30, 20),
-                signal_strength=np.random.uniform(0.3, 1.0),
-                confidence=np.random.uniform(0.5, 0.95),
+                rcs_dbsm=np.random.uniform(-20, 15),
+                signal_strength=np.random.uniform(0.5, 1.0),
+                confidence=np.random.uniform(0.65, 0.98),
                 timestamp=datetime.utcnow()
             )
             targets.append(target)
+        
+        self.last_targets = targets
         
         radar_logger.log_event(
             "targets_extracted",

@@ -1,13 +1,16 @@
 import { EventEmitter } from 'eventemitter3'
+import { envConfig } from '../config/envConfig'
 
 class WebSocketClient extends EventEmitter {
   constructor(url) {
     super()
-    this.url = url || `${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/ws/radar-stream`
+    // Use provided URL or construct from environment configuration
+    // Full WebSocket URL with /ws/radar-stream endpoint
+    this.url = url || envConfig.getWsUrl()
     this.ws = null
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = 10
-    this.baseDelay = 1000
+    this.maxReconnectAttempts = envConfig.get('websocketReconnectMaxAttempts', 10)
+    this.baseDelay = envConfig.get('websocketReconnectInterval', 3000)
     this.isIntentionallyClosed = false
   }
 

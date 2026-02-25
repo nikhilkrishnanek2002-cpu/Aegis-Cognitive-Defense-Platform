@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { DashboardLayout } from '../layout/DashboardLayout'
-import Dashboard from '../pages/Dashboard'
+import DashboardPage from '../pages/DashboardPage'
 import RadarLive from '../pages/RadarLive'
 import ThreatAnalysis from '../pages/ThreatAnalysis'
 import EWControl from '../pages/EWControl'
@@ -20,7 +20,7 @@ export function AppRouter() {
         <Route path="/login" element={<Navigate to="/" replace />} />
         
         <Route element={<DashboardLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<DashboardPage />} />
           <Route path="radar" element={<RadarLive />} />
           <Route path="threats" element={<ThreatAnalysis />} />
           <Route path="ew" element={<EWControl />} />

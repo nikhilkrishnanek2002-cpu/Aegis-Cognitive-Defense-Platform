@@ -30,6 +30,7 @@ export interface RadarFrame {
     spec: number[][]
     meta: number[]
     timestamp: number
+    xai?: { scan_id: string; heatmap: number[][]; heatmap_shape: [number, number]; target_class: string; confidence: number; image_path?: string }
 }
 
 interface RadarState {
