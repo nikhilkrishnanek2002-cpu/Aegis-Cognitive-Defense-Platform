@@ -109,7 +109,7 @@ def check_npm_deps():
 
     # Check if npm is available
     try:
-        result = subprocess.run(["npm", "--version"], capture_output=True, timeout=5)
+        result = subprocess.run(["npm", "--version"], capture_output=True, timeout=5, shell=True)
         if result.returncode != 0:
             warn("npm not found. Skipping React frontend.")
             return False
@@ -124,7 +124,8 @@ def check_npm_deps():
                 ["npm", "install"],
                 cwd=FRONTEND_DIR,
                 capture_output=True,
-                timeout=120
+                timeout=120,
+                shell=True
             )
             if r.returncode != 0:
                 error("npm install failed.")
@@ -218,6 +219,7 @@ def launch():
             stdin=subprocess.DEVNULL,
             stdout=react_log,
             stderr=react_log,
+            shell=True
         )
         processes.append(("React", react_proc, react_log))
 
