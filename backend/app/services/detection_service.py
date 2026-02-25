@@ -29,9 +29,10 @@ class MockDetectionModel:
     def predict(self, target: RadarTarget) -> DetectionResult:
         """Classify a radar target."""
         
-        # Mock classification
+        # Mock classification - use random.choice() not np.random.choice() for enums
+        import random
         target_types = [t for t in TargetType if t != TargetType.UNKNOWN]
-        predicted_type = np.random.choice(target_types)
+        predicted_type = random.choice(target_types)
         confidence = np.random.uniform(0.6, 0.99)
         
         result = DetectionResult(

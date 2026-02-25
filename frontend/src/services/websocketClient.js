@@ -9,9 +9,10 @@ class WebSocketClient extends EventEmitter {
     this.url = url || envConfig.getWsUrl()
     this.ws = null
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = envConfig.get('websocketReconnectMaxAttempts', 10)
-    this.baseDelay = envConfig.get('websocketReconnectInterval', 3000)
+    this.maxReconnectAttempts = 999 // Infinite retry
+    this.baseDelay = envConfig.get('websocketReconnectInterval', 2000)
     this.isIntentionallyClosed = false
+    this.connectionTimestamp = null
   }
 
   connect() {
@@ -23,9 +24,10 @@ class WebSocketClient extends EventEmitter {
       try {
         this.isIntentionallyClosed = false
         this.ws = new WebSocket(this.url)
+        this.connectionTimestamp = Date.now()
 
         this.ws.onopen = () => {
-          console.log('[WS] Connected')
+          console.log('✅ [WS] Connected to backend')
           this.reconnectAttempts = 0
           this.emit('connect')
           resolve()
@@ -41,13 +43,13 @@ class WebSocketClient extends EventEmitter {
         }
 
         this.ws.onerror = (error) => {
-          console.error('[WS] Error:', error)
+          console.warn('[WS] Connection error:', error)
           this.emit('error', error)
           reject(error)
         }
 
         this.ws.onclose = () => {
-          console.log('[WS] Disconnected')
+          console.log('[WS] Disconnected from backend')
           this.emit('disconnect')
           if (!this.isIntentionallyClosed) {
             this.reconnect()
@@ -60,16 +62,11 @@ class WebSocketClient extends EventEmitter {
   }
 
   reconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[WS] Max reconnection attempts reached')
-      this.emit('reconnectFailed')
-      return
-    }
-
-    const delay = this.baseDelay * Math.pow(2, this.reconnectAttempts)
+    // Always retry with exponential backoff (no max attempt limit)
+    const delay = Math.min(this.baseDelay * Math.pow(2, this.reconnectAttempts), 30000) // Cap at 30 seconds
     this.reconnectAttempts++
 
-    console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+    console.warn(`[WS] Retrying in ${delay}ms (attempt ${this.reconnectAttempts})`)
 
     setTimeout(() => {
       this.connect().catch(() => {

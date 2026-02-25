@@ -46,9 +46,9 @@ export default function DashboardPage() {
                 </div>
 
                 {frame && (
-                    <div style={{ ...styles.statusBadge, background: frame.is_alert ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)', borderColor: frame.is_alert ? '#ef4444' : '#22c55e' }}>
-                        <span style={{ color: frame.is_alert ? '#fca5a5' : '#86efac', fontSize: 11, fontWeight: 700 }}>
-                            {frame.is_alert ? '🚨 ALERT' : '✅ CLEAR'} — {frame.detected}
+                    <div style={{ ...styles.statusBadge, background: frame?.is_alert ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)', borderColor: frame?.is_alert ? '#ef4444' : '#22c55e' }}>
+                        <span style={{ color: frame?.is_alert ? '#fca5a5' : '#86efac', fontSize: 11, fontWeight: 700 }}>
+                            {frame?.is_alert ? '🚨 ALERT' : '✅ CLEAR'} — {frame?.detected}
                         </span>
                     </div>
                 )}
@@ -70,10 +70,10 @@ export default function DashboardPage() {
                     <h2 style={styles.tabTitle}>{TABS[activeTab]}</h2>
                     {frame && (
                         <div style={styles.headerMeta}>
-                            <span style={styles.badge}>⚡ {frame.num_detections} detection{frame.num_detections !== 1 ? 's' : ''}</span>
-                            <span style={styles.badge}>🎯 {Object.keys(frame.active_tracks).length} tracks</span>
-                            <span style={{ ...styles.badge, color: frame.ew.active ? '#fca5a5' : '#86efac' }}>
-                                EW {frame.ew.active ? '🔴 ACTIVE' : '🟢 CLEAR'}
+                            <span style={styles.badge}>⚡ {frame?.num_detections ?? 0} detection{(frame?.num_detections ?? 0) !== 1 ? 's' : ''}</span>
+                            <span style={styles.badge}>🎯 {Object.keys(frame?.active_tracks ?? {}).length} tracks</span>
+                            <span style={{ ...styles.badge, color: frame?.ew?.active ? '#fca5a5' : '#86efac' }}>
+                                EW {frame?.ew?.active ? '🔴 ACTIVE' : '🟢 CLEAR'}
                             </span>
                         </div>
                     )}

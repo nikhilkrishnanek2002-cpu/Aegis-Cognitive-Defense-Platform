@@ -118,7 +118,10 @@ async def get_system_health(user: dict = Depends(require_admin)):
         "uptime_seconds": 0,
         "cpu_percent": 0.0,
         "memory_percent": 0.0,
-        "disk_percent": 0.0
+        "disk_percent": 0.0,
+        "db_connected": True,  # Mock database status
+        "rtlsdr_available": False,  # RTL-SDR not available in demo mode
+        "kafka_available": False  # Kafka not required in demo mode
     }
     
     if HAS_PSUTIL:
@@ -127,7 +130,7 @@ async def get_system_health(user: dict = Depends(require_admin)):
         
         try:
             health_data["timestamp"] = datetime.utcnow().isoformat()
-            health_data["cpu_percent"] = float(psutil.cpu_percent(interval=0.5))
+            health_data["cpu_percent"] = float(psutil.cpu_percent(interval=0.1))
             health_data["memory_percent"] = float(psutil.virtual_memory().percent)
             health_data["disk_percent"] = float(psutil.disk_usage("/").percent)
             health_data["uptime_seconds"] = int(datetime.utcnow().timestamp() - psutil.boot_time())
@@ -137,6 +140,8 @@ async def get_system_health(user: dict = Depends(require_admin)):
                 health_data["status"] = "warning"
             elif health_data["memory_percent"] > 95:
                 health_data["status"] = "critical"
+            else:
+                health_data["status"] = "healthy"
         except Exception as e:
             health_data["error"] = str(e)
     

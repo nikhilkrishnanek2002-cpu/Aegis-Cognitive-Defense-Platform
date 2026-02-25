@@ -13,20 +13,29 @@ import time
 class RadarSimulator:
     """Simulates continuous radar scanning with realistic target motion."""
     
+    TARGET_TYPES = ["DRONE", "AIRCRAFT", "HELICOPTER", "BIRD", "MISSILE", "UNKNOWN"]
+    
     def __init__(self):
         self.scan_count = 0
         self.last_scan_time = None
         self.active_targets: Dict[str, Dict[str, Any]] = {}
         self.simulation_mode = True
         self.simulation_speed = 1.0  # Speed multiplier for target motion
+        self.target_counter = 0  # For generating meaningful target names
     
     async def _generate_new_targets(self) -> int:
         """Generate some new targets randomly."""
         num_new = np.random.randint(1, 4)
         
         for _ in range(num_new):
-            target_id = str(uuid.uuid4())[:8]
+            self.target_counter += 1
+            target_type = np.random.choice(self.TARGET_TYPES)
+            target_name = f"{target_type}-{self.target_counter}"
+            target_id = target_name  # Use human-readable name as ID
+            
             self.active_targets[target_id] = {
+                "name": target_name,
+                "type": target_type,
                 "x": np.random.uniform(-500, 500),
                 "y": np.random.uniform(-500, 500),
                 "vx": np.random.uniform(-30, 30),
@@ -125,8 +134,14 @@ class RadarSimulator:
         
         # Ensure at least 1 target
         if not targets:
-            target_id = str(uuid.uuid4())[:8]
+            self.target_counter += 1
+            target_type = np.random.choice(self.TARGET_TYPES)
+            target_name = f"{target_type}-{self.target_counter}"
+            target_id = target_name
+            
             self.active_targets[target_id] = {
+                "name": target_name,
+                "type": target_type,
                 "x": np.random.uniform(-200, 200),
                 "y": np.random.uniform(-200, 200),
                 "vx": np.random.uniform(-20, 20),
