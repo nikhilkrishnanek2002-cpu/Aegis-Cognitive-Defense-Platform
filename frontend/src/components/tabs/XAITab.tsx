@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import Plot from 'react-plotly.js'
 import { useRadarStore } from '../../store/radarStore'
 
+// @ts-ignore - apiClient is a JS file
+import { radar } from '../../services/apiClient'
+
 interface GradCAMData {
     scan_id: string
     heatmap: number[][]
@@ -32,27 +35,32 @@ export default function XAITab() {
         setLoading(true)
         setError('')
         try {
-            const response = await fetch(`/api/radar/scan`, {
+            // Bypass any frontend Axios interceptors or mocks by using raw fetch
+            const token = localStorage.getItem('aegis_token')
+            const res = await fetch('/api/radar/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('aegis_token') || ''}`,
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({
                     target: frame.detected,
                     distance: 200,
                     gain_db: 15,
-                }),
+                })
             })
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+
+            if (!res.ok) {
+                throw new Error(`HTTP Error ${res.status}: ${res.statusText}`)
             }
-            const data = await response.json()
-            if (data.xai) {
+
+            const data = await res.json()
+            if (data && data.xai) {
                 setGradcamData(data.xai)
                 setError('')
             } else {
-                throw new Error('No XAI data in response')
+                const keys = Object.keys(data).join(', ')
+                throw new Error(`No XAI data! Received keys: [${keys}]`)
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unknown error'
@@ -68,102 +76,106 @@ export default function XAITab() {
             <div style={styles.section}>
                 <h3 style={styles.title}>🧠 Explainable AI — Grad-CAM Heatmaps</h3>
                 <p style={styles.description}>
-                    Grad-CAM visualizations highlight which regions of the radar map influenced the AI classification decision. 
+                    Grad-CAM visualizations highlight which regions of the radar map influenced the AI classification decision.
                     Red areas = high influence, Blue areas = low influence.
                 </p>
 
-                {error && (
-                    <div style={styles.error}>
-                        ⚠️ {error}
-                    </div>
-                )}
+                {
+                    error && (
+                        <div style={styles.error}>
+                            ⚠️ {error}
+                        </div>
+                    )
+                }
 
-                {!gradcamData ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
-                        {['RD Map Analysis', 'Target Influence'].map((label) => (
-                            <div key={label} style={styles.placeholder}>
-                                <div style={styles.icon}>🎨</div>
-                                <div style={styles.placeholderText}>{label}</div>
-                                <p style={styles.placeholderSub}>
-                                    Grad-CAM visualization will appear here after generating a scan.
-                                    {frame?.detected ? ' Click "Generate" to create visualization.' : ' No radar data available.'}
-                                </p>
-                                <button
-                                    onClick={handleGenerateGradCAM}
-                                    disabled={loading || !frame?.detected}
-                                    style={{
-                                        ...styles.button,
-                                        opacity: (loading || !frame?.detected) ? 0.5 : 1,
-                                        cursor: (loading || !frame?.detected) ? 'not-allowed' : 'pointer',
-                                    }}
-                                >
-                                    {loading ? '⏳ Generating...' : '▶ Generate Grad-CAM'}
-                                </button>
+                {
+                    !gradcamData ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
+                            {['RD Map Analysis', 'Target Influence'].map((label) => (
+                                <div key={label} style={styles.placeholder}>
+                                    <div style={styles.icon}>🎨</div>
+                                    <div style={styles.placeholderText}>{label}</div>
+                                    <p style={styles.placeholderSub}>
+                                        Grad-CAM visualization will appear here after generating a scan.
+                                        {frame?.detected ? ' Click "Generate" to create visualization.' : ' No radar data available.'}
+                                    </p>
+                                    <button
+                                        onClick={handleGenerateGradCAM}
+                                        disabled={loading || !frame?.detected}
+                                        style={{
+                                            ...styles.button,
+                                            opacity: (loading || !frame?.detected) ? 0.5 : 1,
+                                            cursor: (loading || !frame?.detected) ? 'not-allowed' : 'pointer',
+                                        }}
+                                    >
+                                        {loading ? '⏳ Generating...' : '▶ Generate Grad-CAM'}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div style={{ marginTop: 20 }}>
+                            <div style={styles.dataHeader}>
+                                <span style={{ color: '#60a5fa' }}>🎯 Target: {gradcamData.target_class}</span>
+                                <span style={{ color: '#22c55e' }}>✓ Confidence: {(gradcamData.confidence * 100).toFixed(1)}%</span>
+                                <span style={{ color: '#a78bfa' }}>📍 Scan: {gradcamData.scan_id}</span>
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div style={{ marginTop: 20 }}>
-                        <div style={styles.dataHeader}>
-                            <span style={{ color: '#60a5fa' }}>🎯 Target: {gradcamData.target_class}</span>
-                            <span style={{ color: '#22c55e' }}>✓ Confidence: {(gradcamData.confidence * 100).toFixed(1)}%</span>
-                            <span style={{ color: '#a78bfa' }}>📍 Scan: {gradcamData.scan_id}</span>
-                        </div>
 
-                        <div style={{ marginTop: 16 }}>
-                            <h4 style={styles.chartTitle}>Grad-CAM Activation Heatmap</h4>
-                            {gradcamData.heatmap && (
-                                <Plot
-                                    data={[{
-                                        z: gradcamData.heatmap,
-                                        type: 'heatmap' as const,
-                                        colorscale: [[0, '#000000'], [0.5, '#FF6600'], [1, '#FFFF00']],
-                                        showscale: true,
-                                        colorbar: { title: { text: 'Activation Strength' } },
-                                    } as any]}
-                                    layout={{
-                                        title: { text: `Grad-CAM: ${gradcamData.target_class}` },
-                                        xaxis: { title: { text: 'Range (bins)' } },
-                                        yaxis: { title: { text: 'Doppler (bins)' } },
-                                        plot_bgcolor: 'rgba(15, 23, 42, 0.5)',
-                                        paper_bgcolor: 'rgba(15, 23, 42, 0.3)',
-                                        font: { color: '#e2e8f0' },
-                                        margin: { t: 40, r: 100, b: 60, l: 60 }
-                                    } as any}
-                                    style={{ width: '100%', height: 400 }}
-                                    config={{ responsive: true }}
-                                />
-                            )}
-                        </div>
+                            <div style={{ marginTop: 16 }}>
+                                <h4 style={styles.chartTitle}>Grad-CAM Activation Heatmap</h4>
+                                {gradcamData.heatmap && (
+                                    <Plot
+                                        data={[{
+                                            z: gradcamData.heatmap,
+                                            type: 'heatmap' as const,
+                                            colorscale: [[0, '#000000'], [0.5, '#FF6600'], [1, '#FFFF00']],
+                                            showscale: true,
+                                            colorbar: { title: { text: 'Activation Strength' } },
+                                        } as any]}
+                                        layout={{
+                                            title: { text: `Grad-CAM: ${gradcamData.target_class}` },
+                                            xaxis: { title: { text: 'Range (bins)' } },
+                                            yaxis: { title: { text: 'Doppler (bins)' } },
+                                            plot_bgcolor: 'rgba(15, 23, 42, 0.5)',
+                                            paper_bgcolor: 'rgba(15, 23, 42, 0.3)',
+                                            font: { color: '#e2e8f0' },
+                                            margin: { t: 40, r: 100, b: 60, l: 60 }
+                                        } as any}
+                                        style={{ width: '100%', height: 400 }}
+                                        config={{ responsive: true }}
+                                    />
+                                )}
+                            </div>
 
-                        <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                            <div style={styles.infoCard}>
-                                <div style={styles.infoLabel}>Classification Confidence</div>
-                                <div style={styles.infoValue}>{(gradcamData.confidence * 100).toFixed(1)}%</div>
-                                <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 6, marginTop: 8, overflow: 'hidden' }}>
-                                    <div style={{ background: '#60a5fa', height: '100%', width: `${gradcamData.confidence * 100}%`, transition: 'width 0.3s' }} />
+                            <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div style={styles.infoCard}>
+                                    <div style={styles.infoLabel}>Classification Confidence</div>
+                                    <div style={styles.infoValue}>{(gradcamData.confidence * 100).toFixed(1)}%</div>
+                                    <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 6, marginTop: 8, overflow: 'hidden' }}>
+                                        <div style={{ background: '#60a5fa', height: '100%', width: `${gradcamData.confidence * 100}%`, transition: 'width 0.3s' }} />
+                                    </div>
+                                </div>
+                                <div style={styles.infoCard}>
+                                    <div style={styles.infoLabel}>Heatmap Resolution</div>
+                                    <div style={styles.infoValue}>{gradcamData.heatmap_shape[0]}×{gradcamData.heatmap_shape[1]}</div>
                                 </div>
                             </div>
-                            <div style={styles.infoCard}>
-                                <div style={styles.infoLabel}>Heatmap Resolution</div>
-                                <div style={styles.infoValue}>{gradcamData.heatmap_shape[0]}×{gradcamData.heatmap_shape[1]}</div>
-                            </div>
-                        </div>
 
-                        <button
-                            onClick={handleGenerateGradCAM}
-                            disabled={loading}
-                            style={{
-                                ...styles.regenerateButton,
-                                opacity: loading ? 0.6 : 1,
-                                marginTop: 20
-                            }}
-                        >
-                            {loading ? '⏳ Regenerating...' : '🔄 Regenerate Grad-CAM'}
-                        </button>
-                    </div>
-                )}
-            </div>
+                            <button
+                                onClick={handleGenerateGradCAM}
+                                disabled={loading}
+                                style={{
+                                    ...styles.regenerateButton,
+                                    opacity: loading ? 0.6 : 1,
+                                    marginTop: 20
+                                }}
+                            >
+                                {loading ? '⏳ Regenerating...' : '🔄 Regenerate Grad-CAM'}
+                            </button>
+                        </div>
+                    )
+                }
+            </div >
 
             <div style={styles.infoSection}>
                 <h4 style={styles.infoTitle}>📖 How Grad-CAM Works</h4>
@@ -174,7 +186,7 @@ export default function XAITab() {
                     <li>Use this to understand which radar features the AI model relies on</li>
                 </ul>
             </div>
-        </div>
+        </div >
     )
 }
 

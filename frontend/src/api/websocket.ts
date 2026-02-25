@@ -17,7 +17,7 @@ export function useRadarWebSocket(onFrame: FrameHandler) {
     const startSimulation = useCallback(() => {
         console.log('🎮 Starting frontend radar simulation (backend unavailable)')
         setIsSimulating(true)
-        
+
         if (!simulatorRef.current) {
             simulatorRef.current = new RadarSimulator()
         }
@@ -26,7 +26,7 @@ export function useRadarWebSocket(onFrame: FrameHandler) {
         simulationIntervalRef.current = setInterval(() => {
             try {
                 const { targets, metrics } = simulatorRef.current!.executeSimulationCycle()
-                
+
                 const simulatedFrame = {
                     detected: targets.length > 0 ? targets[0].id : 'SIM-0',
                     confidence: 0.85,
@@ -88,7 +88,7 @@ export function useRadarWebSocket(onFrame: FrameHandler) {
 
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
         const wsUrl = `${protocol}://localhost:8000/ws/stream`
-        
+
         console.log('🔌 Connecting to WebSocket:', wsUrl)
 
         try {
@@ -99,7 +99,7 @@ export function useRadarWebSocket(onFrame: FrameHandler) {
                 console.log('✅ WebSocket connected')
                 setIsConnected(true)
                 stopSimulation()
-                
+
                 // Clear fallback timeout
                 if (connectionTimeoutRef.current) {
                     clearTimeout(connectionTimeoutRef.current)
@@ -116,12 +116,12 @@ export function useRadarWebSocket(onFrame: FrameHandler) {
             ws.onclose = () => {
                 console.log('❌ WebSocket disconnected')
                 setIsConnected(false)
-                
+
                 // Start simulation if not already running
                 if (!isSimulating) {
                     startSimulation()
                 }
-                
+
                 // Retry in 2 seconds
                 setTimeout(connect, 2000)
             }
@@ -156,7 +156,7 @@ export function useRadarWebSocket(onFrame: FrameHandler) {
             if (simulationIntervalRef.current) {
                 clearInterval(simulationIntervalRef.current)
             }
-            if (wsRef.current) {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                 wsRef.current.close()
             }
             stopSimulation()
