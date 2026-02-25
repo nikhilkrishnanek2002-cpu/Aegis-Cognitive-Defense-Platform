@@ -55,12 +55,27 @@ export default function XAITab() {
             }
 
             const data = await res.json()
-            if (data && data.xai) {
-                setGradcamData(data.xai)
+            
+            // Validate XAI data structure
+            if (data && data.xai && typeof data.xai === 'object') {
+                const xai = data.xai
+                
+                // Ensure required fields exist
+                if (!xai.heatmap || !Array.isArray(xai.heatmap) || xai.heatmap.length === 0) {
+                    console.warn('XAI heatmap is invalid, received:', xai)
+                    throw new Error('Invalid Grad-CAM heatmap data')
+                }
+                
+                if (!xai.heatmap_shape || !Array.isArray(xai.heatmap_shape)) {
+                    throw new Error('Invalid heatmap shape')
+                }
+                
+                setGradcamData(xai as GradCAMData)
                 setError('')
             } else {
-                const keys = Object.keys(data).join(', ')
-                throw new Error(`No XAI data! Received keys: [${keys}]`)
+                const keys = data ? Object.keys(data).join(', ') : 'empty response'
+                console.warn('Response data:', data)
+                throw new Error(`No valid XAI data! Received keys: [${keys}]`)
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unknown error'
