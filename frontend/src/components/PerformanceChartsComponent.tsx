@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import Plot from 'react-plotly.js'
-import { API_BASE } from '../api/client'
 
 interface ChartData {
     confusion_matrix?: number[][]
@@ -18,8 +17,8 @@ export default function PerformanceChartsComponent() {
         const fetchCharts = async () => {
             try {
                 // Try to fetch performance chart data
-                const response = await fetch(`${API_BASE}/visualizations/performance-charts`, {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const response = await fetch(`/api/visualizations/performance-charts`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('aegis_token')}` }
                 })
                 if (response.ok) {
                     const data = await response.json()

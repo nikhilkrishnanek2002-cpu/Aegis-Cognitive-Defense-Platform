@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
     plugins: [react()],
+    esbuild: {
+        drop: ['console', 'debugger'],
+    },
     server: {
         port: parseInt(process.env.VITE_PORT || '3000'),
         strictPort: false,
@@ -21,18 +24,12 @@ export default defineConfig({
     },
     build: {
         target: 'esnext',
-        minify: 'terser',
-        terserOptions: {
-            compress: {
-                drop_console: true,
-            },
-        },
+        minify: 'esbuild',
         rollupOptions: {
             output: {
                 // Code splitting configuration
                 manualChunks: {
                     vendor: ['react', 'react-dom', 'zustand'],
-                    utils: ['date-fns'],
                 },
                 entryFileNames: 'js/[name]-[hash].js',
                 chunkFileNames: 'js/[name]-[hash].js',

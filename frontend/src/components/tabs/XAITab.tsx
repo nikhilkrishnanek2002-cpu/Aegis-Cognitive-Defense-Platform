@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import Plot from 'react-plotly.js'
 import { useRadarStore } from '../../store/radarStore'
-import { API_BASE } from '../../api/client'
 
 interface GradCAMData {
     scan_id: string
@@ -30,11 +29,11 @@ export default function XAITab() {
         }
         setLoading(true)
         try {
-            const response = await fetch(`${API_BASE}/radar/scan`, {
+            const response = await fetch(`/api/radar/scan`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${localStorage.getItem('aegis_token')}`,
                 },
                 body: JSON.stringify({
                     target: frame.detected,
@@ -116,7 +115,7 @@ export default function XAITab() {
                             <div style={{ marginTop: 20 }}>
                                 <h4 style={styles.chartTitle}>Grad-CAM Overlay (PNG)</h4>
                                 <img
-                                    src={`${API_BASE}${gradcamData.image_path}`}
+                                    src={`/api${gradcamData.image_path}`}
                                     alt="Grad-CAM"
                                     style={{
                                         width: '100%',
