@@ -1,0 +1,104 @@
+# Aegis Cognitive Defense Platform: Comprehensive Features & Functions Report
+
+This document outlines every major technical domain, feature, and corresponding core function utilized within the Aegis Cognitive Defense Platform. 
+
+## 1. Digital Signal Processing (DSP) & Radar Engineering
+*Domain: Physics, Data Science, and Mathematics*
+
+**Core Features & Capabilities:**
+*   **Synthetic Signal Generation:** Creates highly realistic radar echo wave data based on the laws of physics, complete with simulated noise, clutter, and Doppler shifts.
+*   **Fast Fourier Transforms (FFT):** Converts raw time-domain signal data into frequency models to extract target velocity (Doppler) and distance (Range).
+*   **Target Detection CFAR:** Employs advanced algorithms to filter out background noise and identify valid radar spikes as targets.
+
+**Key Functions Used:**
+*   [matched_filter(received, template)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/src/detection.py#15-24): Maximizes Signal-to-Noise Ratio (SNR) by applying FFT convolution to compare the received signal against the transmitted template.
+*   [range_doppler_map(pulses, n_range, n_doppler)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/src/detection.py#26-33): Applies a 2D Fast Fourier Transform (`np.fft.fft2`) to map raw radar pulses into 2D matrices showing Range and Doppler space.
+*   [ca_cfar(rd_map, guard, train, pfa)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/src/detection.py#35-78): Executes Cell-Averaging Constant False Alarm Rate (CA-CFAR) detection. Averages background noise cells to dynamically set detection thresholds using 2D image convolution.
+*   [os_cfar(rd_map, guard, train, rank, pfa)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/src/detection.py#80-119): Executes Order-Statistic CFAR. Sorts background noise cells arrays and selects a specific rank to establish detection thresholds (optimal for multiple close targets).
+*   [detect_targets_from_raw(signal, fs, n_range, n_doppler)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/src/detection.py#121-157): The master DSP pipeline function that chains FFT transformation with CFAR detection to return exact [(X, Y)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/api/routes/auth.py#26-33) coordinate matrices of valid targets.
+
+---
+
+## 2. Artificial Intelligence (Deep Learning) & Computer Vision
+*Domain: Machine Learning and Artificial Intelligence*
+
+**Core Features & Capabilities:**
+*   **Target Classification:** Identifies what a detected blip is (e.g., Drone, Missile, Aircraft, Bird, Unknown) by analyzing Range-Doppler matrices visually.
+*   **Feature Extraction:** Extracts meaningful data from radar reflections, such as spectrograms.
+
+**Key Functions Used:**
+*   `MultiInputCNN(nn.Module)`: A custom PyTorch Convolutional Neural Network class. It features separate neural layers (paths) for examining Range-Doppler grids and temporal spectrograms simultaneously before fusing the data for a final classification decision.
+*   `forward(rd_input, spec_input)`: The inference function of the CNN that passes radar matrices through standard convolution (`Conv2d`), pooling (`MaxPool2d`), and Activation (`ReLU`) layers to output class probabilities.
+*   `extract_detailed_features(signal, fs, n_range, n_doppler)`: Uses `scipy.signal.spectrogram` to extract complex sub-features (like micro-Doppler signatures) for use in the neural network.
+
+---
+
+## 3. Explainable Artificial Intelligence (XAI)
+*Domain: Transparent AI and Military/Operator Trust*
+
+**Core Features & Capabilities:**
+*   **Decision Transparency:** Generates thermal heatmaps overlaying radar matrices to visually highlight exactly *which* pixels or data points caused the AI model to make its classification, allowing human operators to verify the AI's logic.
+
+**Key Functions Used:**
+*   `GradCAM(model, target_layer)`: A PyTorch class that hooks into the CNN to intercept and calculate the gradients flowing backward from the final classification to the specific convolutional `target_layer`.
+*   `generate_cam(rd_tensor, spec_tensor, class_idx)`: The execution function that computes the Grad-CAM matrix data. It returns a normalized floating-point heatmap array mapping the model's visual attention.
+
+---
+
+## 4. Reinforcement Learning (Cognitive AI & EW Defense)
+*Domain: Advanced Machine Learning and Control Theory*
+
+**Core Features & Capabilities:**
+*   **Cognitive Electronic Warfare (EW):** Allows the radar system to autonomously adapt its broadcasting frequencies in real-time to avoid being jammed by enemy EW threats.
+
+**Key Functions Used:**
+*   `WaveformRLAgent(state_dim, action_dim)`: An initialization function setting up an RL agent (typically using algorithms like Q-learning or Deep Q-Networks).
+*   `select_action(state)`: Selects the next radar frequency or waveform parameter to hop to based on the agent's learned policy (epsilon-greedy).
+*   `update(state, action, reward, next_state)`: Feeds environmental feedback (was the radar jammed?) back into the agent to optimize its neural weights/Q-table.
+*   `analyze_threat(spectrum_data)`: Parses external signal noise to determine if a jammer is actively targeting the platform.
+
+---
+
+## 5. Kinematics, State Estimation & Tracking
+*Domain: Applied Mathematics and Multi-Target Association*
+
+**Core Features & Capabilities:**
+*   **Multi-Target Tracking:** Predicts the future flight path of drones/missiles based on physics (velocity, positioning, time) and maintains continuous track IDs across hundreds of radar frames.
+
+**Key Functions Used:**
+*   `KalmanTracker(initial_state)`: Initializes a mathematical Kalman Filter matrix. Tracks the state `[x, y, dx, dy]` (position and velocity) and its covariance (uncertainty).
+*   `predict()`: Uses motion model matrices to calculate where the target *should* be in the next frame based purely on its last known velocity.
+*   `update(measurement)`: Merges the actual new radar measurement with the `predict()` calculation to correct the track based on Kalman gain algorithms.
+*   `associate_detections_to_tracks(detections, tracks)`: Uses the **Hungarian algorithm** (`scipy.optimize.linear_sum_assignment`) to perfectly match new blips to existing Kalmans by calculating the minimum spatial distance cost matrix.
+
+---
+
+## 6. Real-Time Distributed Systems & Full-Stack Architecture
+*Domain: Software Engineering, Web Development, systems Architecture*
+
+**Core Features & Capabilities:**
+*   **Asynchronous Processing:** Python backend runs high-performance math calculations simultaneously alongside serving HTTP and WebSocket traffic without blocking.
+*   **Live Dashboarding:** React frontend receives pure, low-latency binary streams of radar data and renders it interactively in the browser at high frame rates.
+
+**Key Functions Used:**
+*    **Backend (FastAPI):**
+    *   `broadcast_radar_data()`: An asynchronous Python coroutine running a continuous loop `while True:`. It pulls data from the simulated radar engine, transforms it into JSON, and uses `websocket.send_json()` to push it to the frontend.
+    *   `@app.post("/api/radar/scan")`: A REST API endpoint taking HTTP POST requests to manually trigger a processing pipeline.
+*   **Frontend (React/Vite):**
+    *   `useWebSocket(url)`: A custom React hook establishing a persistent TCP connection to the FastAPI server to ingest live telemetry.
+    *   `Zustand Store (useRadarStore)`: A centralized React state manager that holds the global arrays of incoming tracking blips and AI classifications to prevent the UI from lagging via unnecessary re-renders.
+
+---
+
+## 7. Application Security (AppSec) & Cryptography
+*Domain: Cybersecurity and Access Control*
+
+**Core Features & Capabilities:**
+*   **Stateless JWT Authentication:** Issues securely signed JSON Web Tokens for API requests.
+*   **Cryptographic Password Storage:** Hashes all passwords using highly secure Bcrypt salts, preventing database exploitation.
+*   **Role-Based Access Control (RBAC):** Restricts dangerous system operations (like changing system configurations) to Administrator accounts only.
+
+**Key Functions Used:**
+*   [verify_password(plain, hashed)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/api/auth_utils.py#21-23): Uses Python's `passlib` Bcrypt context to cryptographically hash a plain-text login attempt and compare it to the database string.
+*   [create_access_token(data)](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/api/auth_utils.py#25-30): Generates a JWT token signed with an `HS256` symmetric algorithm and a secret key.
+*   [require_admin(user = Depends(get_current_user))](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/api/auth_utils.py#52-56): A FastAPI dependency injection route protector. It intercepts incoming HTTP requests, decodes the JWT, and throws a `403 Forbidden` Exception if the user executing the request payload lacks the [admin](file:///c:/Users/nikhil/Desktop/MCA%20Project/Aegis-Cognitive-Defense-Platform/api/auth_utils.py#52-56) role.

@@ -1,9 +1,11 @@
 import { useRadarStore } from '../../store/radarStore'
+// @ts-ignore
+import { RadarCanvas } from '../radar/RadarCanvas'
 
 export default function AnalyticsTab() {
     const { frame, trackHistory = [] } = useRadarStore()
 
-    if (!frame) return <p style={{ color: '#94a3b8' }}>⏳ Waiting for radar data...</p>
+    if (!frame) return <p style={{ color: '#0ff', fontFamily: 'monospace' }}>[ SYSTEM ] ⏳ Waiting for radar telemetry...</p>
 
     const priorityColor: Record<string, string> = { Critical: '#ef4444', High: '#f97316', Medium: '#eab308', Low: '#22c55e' }
 
@@ -30,6 +32,11 @@ export default function AnalyticsTab() {
                     🚨 <strong>THREAT ALERT</strong> — {frame?.detected} detected with {((frame?.confidence ?? 0) * 100).toFixed(1)}% confidence
                 </div>
             )}
+
+            {/* Live Radar Scope */}
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', padding: '10px 0' }}>
+                <RadarCanvas />
+            </div>
 
             {/* Track History Table */}
             <div style={styles.section}>

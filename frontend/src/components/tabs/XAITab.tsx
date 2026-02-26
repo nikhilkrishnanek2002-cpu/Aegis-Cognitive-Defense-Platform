@@ -55,21 +55,21 @@ export default function XAITab() {
             }
 
             const data = await res.json()
-            
+
             // Validate XAI data structure
             if (data && data.xai && typeof data.xai === 'object') {
                 const xai = data.xai
-                
+
                 // Ensure required fields exist
                 if (!xai.heatmap || !Array.isArray(xai.heatmap) || xai.heatmap.length === 0) {
                     console.warn('XAI heatmap is invalid, received:', xai)
                     throw new Error('Invalid Grad-CAM heatmap data')
                 }
-                
+
                 if (!xai.heatmap_shape || !Array.isArray(xai.heatmap_shape)) {
                     throw new Error('Invalid heatmap shape')
                 }
-                
+
                 setGradcamData(xai as GradCAMData)
                 setError('')
             } else {
@@ -86,6 +86,39 @@ export default function XAITab() {
         }
     }
 
+    const rd_map = frame?.rd_map
+    const rd_z_vals = rd_map ? rd_map.map((row) => row.map((v) => Math.abs(v))) : null
+
+    // Custom Sci-Fi Colorscales
+    const neonCyanColorscale = [
+        [0.0, '#0f2038'], [0.2, '#184c78'], [0.4, '#1b80a6'],
+        [0.6, '#26c4cc'], [0.8, '#69eec2'], [1.0, '#e2ffda'],
+    ]
+
+    const neonPurpleColorscale = [
+        [0.0, '#1a0b2e'], [0.2, '#3b1257'], [0.4, '#6a1a7a'],
+        [0.6, '#a4369e'], [0.8, '#d96a84'], [1.0, '#ffe89b'],
+    ]
+
+    const LayoutBase = {
+        plot_bgcolor: '#0a101d',
+        paper_bgcolor: 'transparent',
+        font: { color: '#2dd4bf', family: "'Orbitron', 'Courier New', monospace" },
+        margin: { t: 40, r: 60, b: 60, l: 80 },
+        xaxis: {
+            gridcolor: 'rgba(45, 212, 191, 0.2)',
+            zerolinecolor: 'rgba(45, 212, 191, 0.5)',
+            tickfont: { color: '#8da9c4' },
+            showline: true, linecolor: '#2dd4bf', linewidth: 1, mirror: true
+        },
+        yaxis: {
+            gridcolor: 'rgba(45, 212, 191, 0.2)',
+            zerolinecolor: 'rgba(45, 212, 191, 0.5)',
+            tickfont: { color: '#8da9c4' },
+            showline: true, linecolor: '#2dd4bf', linewidth: 1, mirror: true
+        }
+    }
+
     return (
         <div style={{ color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={styles.section}>
@@ -95,113 +128,132 @@ export default function XAITab() {
                     Red areas = high influence, Blue areas = low influence.
                 </p>
 
-                {
-                    error && (
-                        <div style={styles.error}>
-                            ⚠️ {error}
-                        </div>
-                    )
-                }
+                {error && <div style={styles.error}>⚠️ {error}</div>}
 
-                {
-                    !gradcamData ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
-                            {['RD Map Analysis', 'Target Influence'].map((label) => (
-                                <div key={label} style={styles.placeholder}>
-                                    <div style={styles.icon}>🎨</div>
-                                    <div style={styles.placeholderText}>{label}</div>
-                                    <p style={styles.placeholderSub}>
-                                        Grad-CAM visualization will appear here after generating a scan.
-                                        {frame?.detected ? ' Click "Generate" to create visualization.' : ' No radar data available.'}
-                                    </p>
-                                    <button
-                                        onClick={handleGenerateGradCAM}
-                                        disabled={loading || !frame?.detected}
-                                        style={{
-                                            ...styles.button,
-                                            opacity: (loading || !frame?.detected) ? 0.5 : 1,
-                                            cursor: (loading || !frame?.detected) ? 'not-allowed' : 'pointer',
-                                        }}
-                                    >
-                                        {loading ? '⏳ Generating...' : '▶ Generate Grad-CAM'}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div style={{ marginTop: 20 }}>
-                            <div style={styles.dataHeader}>
-                                <span style={{ color: '#60a5fa' }}>🎯 Target: {gradcamData.target_class}</span>
-                                <span style={{ color: '#22c55e' }}>✓ Confidence: {(gradcamData.confidence * 100).toFixed(1)}%</span>
-                                <span style={{ color: '#a78bfa' }}>📍 Scan: {gradcamData.scan_id}</span>
+                {!gradcamData ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
+                        {['RD Map Analysis', 'Target Influence'].map((label) => (
+                            <div key={label} style={styles.placeholder}>
+                                <div style={styles.icon}>🎨</div>
+                                <div style={styles.placeholderText}>{label}</div>
+                                <p style={styles.placeholderSub}>
+                                    Grad-CAM visualization will appear here after generating a scan.
+                                    {frame?.detected ? ' Click "Generate" to create visualization.' : ' No radar data available.'}
+                                </p>
+                                <button
+                                    onClick={handleGenerateGradCAM}
+                                    disabled={loading || !frame?.detected}
+                                    style={{
+                                        ...styles.button,
+                                        opacity: (loading || !frame?.detected) ? 0.5 : 1,
+                                        cursor: (loading || !frame?.detected) ? 'not-allowed' : 'pointer',
+                                    }}
+                                >
+                                    {loading ? '⏳ Generating...' : '▶ Generate Grad-CAM'}
+                                </button>
                             </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ marginTop: 20 }}>
+                        <div style={styles.dataHeader}>
+                            <span style={{ color: '#60a5fa' }}>🎯 Target: {gradcamData.target_class}</span>
+                            <span style={{ color: '#22c55e' }}>✓ Confidence: {(gradcamData.confidence * 100).toFixed(1)}%</span>
+                            <span style={{ color: '#a78bfa' }}>📍 Scan: {gradcamData.scan_id}</span>
+                        </div>
 
-                            <div style={{ marginTop: 16 }}>
-                                <h4 style={styles.chartTitle}>Grad-CAM Activation Heatmap</h4>
-                                {gradcamData.heatmap && (
+                        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+                            {/* RANGE DOPPLER MAP */}
+                            {rd_z_vals && (
+                                <div style={styles.sciFiContainer}>
+                                    <div style={styles.sciFiHeader}>
+                                        <h4 style={styles.sciFiTitle}>RANGE-DOPPLER MAP</h4>
+                                        <div style={styles.cornerDecoration}></div>
+                                    </div>
+                                    <Plot
+                                        data={[{
+                                            z: rd_z_vals,
+                                            type: 'heatmap',
+                                            colorscale: neonCyanColorscale as any,
+                                            showscale: true,
+                                            colorbar: { thickness: 15, tickfont: { color: '#2dd4bf' }, outlinecolor: '#2dd4bf', bgcolor: 'rgba(0,0,0,0.5)' }
+                                        }]}
+                                        layout={{
+                                            ...LayoutBase,
+                                            xaxis: { ...LayoutBase.xaxis, title: { text: "RANGE (m)", font: { color: '#4fd1c5' } } },
+                                            yaxis: { ...LayoutBase.yaxis, title: { text: "DOPPLER (m/s)", font: { color: '#4fd1c5' } } },
+                                        } as any}
+                                        style={{ width: '100%', height: 350 }}
+                                        config={{ responsive: true, displayModeBar: false }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* GRAD-CAM SPECTROGRAM (ACTUAL GRAD-CAM HEATMAP WITH PROPER STYLE) */}
+                            {gradcamData.heatmap && (
+                                <div style={styles.sciFiContainer}>
+                                    <div style={styles.sciFiHeader}>
+                                        <h4 style={styles.sciFiTitle}>GRAD-CAM INFLUENCE</h4>
+                                        <div style={styles.cornerDecoration}></div>
+                                    </div>
                                     <Plot
                                         data={[{
                                             z: gradcamData.heatmap,
                                             type: 'heatmap' as const,
-                                            colorscale: [[0, '#000000'], [0.5, '#FF6600'], [1, '#FFFF00']],
+                                            colorscale: neonPurpleColorscale as any,
                                             showscale: true,
-                                            colorbar: { title: { text: 'Activation Strength' } },
-                                        } as any]}
+                                            colorbar: { thickness: 15, tickfont: { color: '#fca5a5' }, outlinecolor: '#fca5a5', bgcolor: 'rgba(0,0,0,0.5)', title: { text: 'Activation' } }
+                                        }]}
                                         layout={{
-                                            title: { text: `Grad-CAM: ${gradcamData.target_class}` },
-                                            xaxis: { title: { text: 'Range (bins)' } },
-                                            yaxis: { title: { text: 'Doppler (bins)' } },
-                                            plot_bgcolor: 'rgba(15, 23, 42, 0.5)',
-                                            paper_bgcolor: 'rgba(15, 23, 42, 0.3)',
-                                            font: { color: '#e2e8f0' },
-                                            margin: { t: 40, r: 100, b: 60, l: 60 }
+                                            ...LayoutBase,
+                                            xaxis: { ...LayoutBase.xaxis, title: { text: "RANGE (m)", font: { color: '#9ca3af' } } },
+                                            yaxis: { ...LayoutBase.yaxis, title: { text: "DOPPLER (m/s)", font: { color: '#9ca3af' } } },
                                         } as any}
-                                        style={{ width: '100%', height: 400 }}
-                                        config={{ responsive: true }}
+                                        style={{ width: '100%', height: 350 }}
+                                        config={{ responsive: true, displayModeBar: false }}
                                     />
-                                )}
-                            </div>
-
-                            <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                <div style={styles.infoCard}>
-                                    <div style={styles.infoLabel}>Classification Confidence</div>
-                                    <div style={styles.infoValue}>{(gradcamData.confidence * 100).toFixed(1)}%</div>
-                                    <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 6, marginTop: 8, overflow: 'hidden' }}>
-                                        <div style={{ background: '#60a5fa', height: '100%', width: `${gradcamData.confidence * 100}%`, transition: 'width 0.3s' }} />
-                                    </div>
                                 </div>
-                                <div style={styles.infoCard}>
-                                    <div style={styles.infoLabel}>Heatmap Resolution</div>
-                                    <div style={styles.infoValue}>{gradcamData.heatmap_shape[0]}×{gradcamData.heatmap_shape[1]}</div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleGenerateGradCAM}
-                                disabled={loading}
-                                style={{
-                                    ...styles.regenerateButton,
-                                    opacity: loading ? 0.6 : 1,
-                                    marginTop: 20
-                                }}
-                            >
-                                {loading ? '⏳ Regenerating...' : '🔄 Regenerate Grad-CAM'}
-                            </button>
+                            )}
                         </div>
-                    )
-                }
-            </div >
+
+                        <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoLabel}>Classification Confidence</div>
+                                <div style={styles.infoValue}>{(gradcamData.confidence * 100).toFixed(1)}%</div>
+                                <div style={{ width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 6, marginTop: 8, overflow: 'hidden' }}>
+                                    <div style={{ background: '#60a5fa', height: '100%', width: `${gradcamData.confidence * 100}%`, transition: 'width 0.3s' }} />
+                                </div>
+                            </div>
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoLabel}>Heatmap Resolution</div>
+                                <div style={styles.infoValue}>{gradcamData.heatmap_shape[0]}×{gradcamData.heatmap_shape[1]}</div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleGenerateGradCAM}
+                            disabled={loading}
+                            style={{
+                                ...styles.regenerateButton,
+                                opacity: loading ? 0.6 : 1,
+                                marginTop: 20
+                            }}
+                        >
+                            {loading ? '⏳ Regenerating...' : '🔄 Regenerate Grad-CAM'}
+                        </button>
+                    </div>
+                )}
+            </div>
 
             <div style={styles.infoSection}>
                 <h4 style={styles.infoTitle}>📖 How Grad-CAM Works</h4>
                 <ul style={styles.infoList}>
-                    <li>Red regions show areas that strongly indicate the predicted target class</li>
-                    <li>Blue regions show areas that oppose the prediction</li>
-                    <li>Green regions show neutral areas</li>
-                    <li>Use this to understand which radar features the AI model relies on</li>
+                    <li>Red and yellow regions show areas that strongly indicate the predicted target class</li>
+                    <li>Dark/blue regions show areas that oppose the prediction or have no influence</li>
+                    <li>Compare the raw Range-Doppler map above to the Grad-CAM influence map to see what the AI "saw"</li>
                 </ul>
             </div>
-        </div >
+        </div>
     )
 }
 
@@ -245,4 +297,42 @@ const styles: Record<string, React.CSSProperties> = {
     infoSection: { background: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 12, padding: 16 },
     infoTitle: { margin: '0 0 12px', color: '#c4b5fd', fontSize: 13, fontWeight: 600 },
     infoList: { margin: 0, paddingLeft: 20, color: '#cbd5e1', fontSize: 12, lineHeight: 1.6 },
+
+    // SCI-FI STYLES ADDED
+    sciFiContainer: {
+        background: 'linear-gradient(180deg, rgba(8, 20, 35, 0.9) 0%, rgba(5, 12, 22, 0.9) 100%)',
+        border: '2px solid #38bdf8',
+        borderRadius: '8px',
+        boxShadow: '0 0 15px rgba(56, 189, 248, 0.2), inset 0 0 20px rgba(56, 189, 248, 0.1)',
+        padding: '2px', // Minimal padding to allow plot to fill
+        position: 'relative',
+        overflow: 'hidden',
+    },
+    sciFiHeader: {
+        display: 'flex',
+        justifyContent: 'center',
+        padding: '12px 20px',
+        borderBottom: '1px solid rgba(56, 189, 248, 0.3)',
+        position: 'relative',
+        background: 'rgba(14, 165, 233, 0.1)',
+    },
+    sciFiTitle: {
+        margin: 0,
+        color: '#bae6fd',
+        fontSize: '22px',
+        fontWeight: 400,
+        letterSpacing: '4px',
+        fontFamily: "'Orbitron', 'Courier New', monospace",
+        textShadow: '0 0 10px rgba(186, 230, 253, 0.5)',
+    },
+    cornerDecoration: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '20px',
+        height: '20px',
+        borderTop: '2px solid #e0f2fe',
+        borderLeft: '2px solid #e0f2fe',
+        opacity: 0.8,
+    }
 }
