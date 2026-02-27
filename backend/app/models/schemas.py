@@ -31,6 +31,7 @@ class LoginRequest(BaseModel):
     """Login request."""
     username: str
     password: str
+    role: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -38,6 +39,8 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+    username: str
+    role: str
 
 
 # ─── Radar ────────────────────────────────────────────────────────────────────

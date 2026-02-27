@@ -87,10 +87,15 @@ async def login(request: LoginRequest):
     # Create token
     token, expires_in = create_access_token(request.username)
     
+    # Determine role based on username
+    role = "admin" if request.username == "admin" else "operator"
+    
     return TokenResponse(
         access_token=token,
         token_type="bearer",
-        expires_in=expires_in
+        expires_in=expires_in,
+        username=request.username,
+        role=role
     )
 
 
@@ -109,10 +114,15 @@ async def register(request: LoginRequest):
     
     token, expires_in = create_access_token(request.username)
     
+    # Use provided role or default to operator
+    role = request.role if request.role else "operator"
+    
     return TokenResponse(
         access_token=token,
         token_type="bearer",
-        expires_in=expires_in
+        expires_in=expires_in,
+        username=request.username,
+        role=role
     )
 
 

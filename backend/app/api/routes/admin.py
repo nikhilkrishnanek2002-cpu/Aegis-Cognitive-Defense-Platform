@@ -1,9 +1,13 @@
 """Admin panel routes: user management, system health, config."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from datetime import datetime
+
+# Import auth verification
+from app.api.routes.auth import verify_token, USERS as AUTH_USERS
+from app.core.config import get_config
 
 try:
     import psutil
@@ -39,15 +43,36 @@ USERS_DB = {
 }
 
 
-async def require_admin(token: str = None):
+async def require_admin(authorization: str = Header(None)):
     """Check if user has admin role."""
-    # In production: validate JWT token and check role
-    if not token or token != "admin":
+    # Extract and verify JWT token
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No authorization header"
+        )
+    
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise ValueError()
+    except (ValueError, IndexError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header"
+        )
+    
+    # Verify token and get username
+    username = verify_token(token)
+    
+    # Check if user exists and has admin role
+    if username not in USERS_DB or USERS_DB[username]["role"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required"
         )
-    return {"username": "admin", "role": "admin"}
+    
+    return {"username": username, "role": "admin"}
 
 
 @router.get("/users", response_model=List[UserResponse])
@@ -68,11 +93,13 @@ async def create_user(body: CreateUserRequest, user: dict = Depends(require_admi
             detail=f"User {body.username} already exists"
         )
     
+    # Add to both USERS_DB and AUTH_USERS for consistency
     USERS_DB[body.username] = {
         "username": body.username,
         "password": body.password,
         "role": body.role
     }
+    AUTH_USERS[body.username] = body.password
     
     return {"message": f"User {body.username} created with role {body.role}"}
 
@@ -92,7 +119,11 @@ async def delete_user(username: str, user: dict = Depends(require_admin)):
             detail="Cannot delete admin user"
         )
     
+    # Delete from both USERS_DB and AUTH_USERS for consistency
     del USERS_DB[username]
+    if username in AUTH_USERS:
+        del AUTH_USERS[username]
+    
     return {"message": f"User {username} deleted"}
 
 

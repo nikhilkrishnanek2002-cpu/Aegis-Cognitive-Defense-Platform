@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { login, register } from '../api/client'
 
 export default function LoginPage() {
+    const navigate = useNavigate()
     const [mode, setMode] = useState<'login' | 'register'>('login')
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
@@ -19,6 +21,8 @@ export default function LoginPage() {
         try {
             const res = await login(username, password)
             storeLogin(res.data.access_token, res.data.username, res.data.role)
+            // Navigate to dashboard after successful login
+            navigate('/', { replace: true })
         } catch {
             setError('Invalid credentials. Try again.')
         } finally {
@@ -32,9 +36,11 @@ export default function LoginPage() {
         setLoading(true)
         setError('')
         try {
-            await register(username, password, role)
-            setMode('login')
-            setError('')
+            const res = await register(username, password, role)
+            // Auto-login after successful registration
+            storeLogin(res.data.access_token, res.data.username, res.data.role)
+            // Navigate to dashboard
+            navigate('/', { replace: true })
         } catch (err: unknown) {
             const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
             setError(detail || 'Registration failed')
