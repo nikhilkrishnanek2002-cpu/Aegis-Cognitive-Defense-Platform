@@ -110,18 +110,14 @@ class RadarController:
             return False
     
     async def start(self) -> None:
-        """Start the controller."""
+        """Start the controller. Call initialize() before start()."""
         if self.running:
             return
-        
-        # Initialize services first
-        if not await self.initialize():
-            raise RuntimeError("Failed to initialize services")
-        
+
         self.running = True
         self.startup_time = datetime.utcnow()
         self.task = asyncio.create_task(self._run_loop())
-        
+
         pipeline_logger.info("✓ RadarController started")
     
     async def stop(self) -> None:
@@ -176,28 +172,20 @@ class RadarController:
             self.running = False
     
     async def get_status(self) -> Dict[str, Any]:
-        """Get controller status for health checks."""
-        return {
-            "running": self.running,
-            "cycle_count": self.cycle_count,
-            "uptime_seconds": (datetime.utcnow() - self.startup_time).total_seconds() if self.startup_time else 0,
-            "initialization_status": self.initialization_status,
-            "initialization_errors": self.initialization_errors,
-            "scan_interval": self.scan_interval,
-            "last_result": getattr(self.pipeline, 'last_result', None)
-        }
-    
-    async def get_status(self) -> dict:
-        """Get controller status."""
+        """Get controller and pipeline status."""
         uptime = None
         if self.startup_time:
             uptime = (datetime.utcnow() - self.startup_time).total_seconds()
-        
+
         return {
             "running": self.running,
             "cycle_count": self.cycle_count,
+            "scan_interval": self.scan_interval,
             "scan_interval_s": self.scan_interval,
-            "uptime_seconds": uptime,
+            "uptime_seconds": uptime or 0,
+            "initialization_status": self.initialization_status,
+            "initialization_errors": self.initialization_errors,
+            "last_result": getattr(self.pipeline, 'last_result', None),
             "pipeline_status": await self.pipeline.get_status()
         }
 

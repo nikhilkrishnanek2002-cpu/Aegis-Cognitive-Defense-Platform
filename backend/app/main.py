@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_config
 from app.core.logging import pipeline_logger
+from app.core.gpu_utils import get_gpu_manager
 
 # Import services
 from app.services.radar_service import get_radar_service
@@ -44,8 +45,13 @@ async def lifespan(app: FastAPI):
     pipeline_logger.info("=" * 70)
     
     try:
+        # Initialize GPU (step 0)
+        pipeline_logger.info("\n[0/6] Initializing GPU acceleration...")
+        gpu_manager = get_gpu_manager()
+        gpu_manager.print_status()
+        
         # Initialize services (singletons)
-        pipeline_logger.info("\n[1/5] Initializing services...")
+        pipeline_logger.info("\n[1/6] Initializing services...")
         
         # Use radar simulator by default (production: configure real radar via env)
         import os
@@ -65,7 +71,7 @@ async def lifespan(app: FastAPI):
         pipeline_logger.info("  ✓ All 5 services instantiated")
         
         # Create controller
-        pipeline_logger.info("\n[2/5] Creating pipeline controller...")
+        pipeline_logger.info("\n[2/6] Creating pipeline controller...")
         global controller
         controller = get_controller(
             radar_svc,
@@ -77,7 +83,7 @@ async def lifespan(app: FastAPI):
         pipeline_logger.info("  ✓ Controller created")
         
         # Initialize controller (verify services)
-        pipeline_logger.info("\n[3/5] Verifying service initialization...")
+        pipeline_logger.info("\n[3/6] Verifying service initialization...")
         try:
             if not await controller.initialize():
                 pipeline_logger.warning("  ⚠ Some services failed initialization, continuing with fallbacks")
@@ -86,23 +92,27 @@ async def lifespan(app: FastAPI):
             raise
         
         # Start pipeline
-        pipeline_logger.info("\n[4/5] Starting event pipeline...")
+        pipeline_logger.info("\n[4/6] Starting event pipeline...")
         await controller.start()
         pipeline_logger.info("  ✓ Pipeline controller started")
         pipeline_logger.info(f"  ✓ Scan interval: {config.radar_scan_interval}s")
         
         # Warm up pipeline
-        pipeline_logger.info("\n[5/5] Warming up pipeline...")
+        pipeline_logger.info("\n[5/6] Warming up pipeline...")
         await asyncio.sleep(2)
         pipeline_logger.info("  ✓ Pipeline warmed up")
         
         # Verify running
         status = await controller.get_status()
+        
+        # Final status
+        pipeline_logger.info("\n[6/6] Backend initialization complete")
         pipeline_logger.info("\n" + "=" * 70)
-        pipeline_logger.info("AEGIS READY FOR OPERATION")
+        pipeline_logger.info("🚀 AEGIS READY FOR OPERATION")
         pipeline_logger.info("=" * 70)
         pipeline_logger.info(f"Status: {status.get('initialization_status', 'UNKNOWN')}")
         pipeline_logger.info(f"Cycles: {status.get('cycle_count', 0)}")
+        pipeline_logger.info(f"GPU: {'✅ Enabled' if gpu_manager.is_gpu_available() else '❌ CPU Only'}")
         pipeline_logger.info("=" * 70)
         
     except Exception as e:

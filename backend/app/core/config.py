@@ -42,7 +42,8 @@ class Config:
     log_dir: str = os.getenv("LOG_DIR", "./logs")
     
     # Models
-    model_device: str = os.getenv("MODEL_DEVICE", "cuda")
+    # GPU device for PyTorch models - will auto-fallback to CPU if GPU unavailable
+    model_device: str = os.getenv("MODEL_DEVICE", "auto")  # "auto", "cuda", or "cpu"
     model_cache_dir: str = os.getenv("MODEL_CACHE_DIR", "./models")
     
     # Security
