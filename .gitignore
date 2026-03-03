@@ -165,3 +165,16 @@ cv2
 os
 tf
 .output.txt
+
+# Temp Claude/AI assistant files
+tmpclaude-*
+.junie/
+
+# Resolved merge artifacts
+*.md.resolved
+
+# Desktop shortcut files
+*.desktop
+
+# Generated reports/logs
+*.log
