@@ -71,19 +71,42 @@ async def trigger_scan(request: ScanRequest = Body(...)):
     # Run detection on targets
     detections = await detection_svc.detect_targets(targets if targets else [])
     
-    # Generate Grad-CAM heatmap (synthetic demo data)
+    # Generate realistic Grad-CAM heatmap (synthetic demo data)
     scan_id = scan.scan_id[:8]
     heatmap_size = 64
     
-    # Create synthetic Grad-CAM heatmap (Gaussian-like pattern)
-    x = np.linspace(-3, 3, heatmap_size)
-    y = np.linspace(-3, 3, heatmap_size)
+    # Create realistic Grad-CAM heatmap with multiple activation regions
+    x = np.linspace(-4, 4, heatmap_size)
+    y = np.linspace(-4, 4, heatmap_size)
     X, Y = np.meshgrid(x, y)
-    Z = np.exp(-(X**2 + Y**2) / 2) * 255
     
-    # Add random variations for realism
-    Z = Z + np.random.normal(0, 10, Z.shape)
-    Z = np.clip(Z, 0, 255)
+    # Primary activation region (main target detection area)
+    cx1, cy1 = np.random.uniform(-1.5, 1.5), np.random.uniform(-1.0, 1.0)
+    sx1, sy1 = np.random.uniform(0.6, 1.2), np.random.uniform(0.5, 0.9)
+    Z1 = np.exp(-((X - cx1)**2 / (2 * sx1**2) + (Y - cy1)**2 / (2 * sy1**2)))
+    
+    # Secondary activation region (sidelobe / secondary feature)
+    cx2, cy2 = cx1 + np.random.uniform(1.0, 2.5), cy1 + np.random.uniform(-1.0, 1.0)
+    sx2, sy2 = np.random.uniform(0.3, 0.6), np.random.uniform(0.3, 0.6)
+    Z2 = 0.5 * np.exp(-((X - cx2)**2 / (2 * sx2**2) + (Y - cy2)**2 / (2 * sy2**2)))
+    
+    # Tertiary weak activation (clutter residual attention)
+    cx3, cy3 = np.random.uniform(-3, 3), np.random.uniform(-3, 3)
+    Z3 = 0.2 * np.exp(-((X - cx3)**2 / (2 * 0.8**2) + (Y - cy3)**2 / (2 * 0.8**2)))
+    
+    # Combine activations
+    Z = Z1 + Z2 + Z3
+    
+    # Add realistic thermal-noise-style floor
+    noise_floor = np.random.exponential(0.03, Z.shape)
+    Z = Z + noise_floor
+    
+    # Apply slight Gaussian smoothing via convolution for realistic spread
+    from scipy.ndimage import gaussian_filter
+    Z = gaussian_filter(Z, sigma=1.2)
+    
+    # Normalize to [0, 1] range (real Grad-CAM is 0-1 activation)
+    Z = (Z - Z.min()) / (Z.max() - Z.min() + 1e-8)
     
     target_class = request.target if request.target != "UNKNOWN" else (detections[0].target_type.value if detections else "UNKNOWN")
     

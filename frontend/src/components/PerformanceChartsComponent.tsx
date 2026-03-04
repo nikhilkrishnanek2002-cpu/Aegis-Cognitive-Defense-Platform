@@ -52,12 +52,23 @@ export default function PerformanceChartsComponent() {
                         data={[{
                             z: chartData.confusion_matrix,
                             type: 'heatmap',
-                            colorscale: 'Blues',
+                            colorscale: [
+                                [0.0, '#f7fbff'], [0.2, '#c6dbef'], [0.4, '#6baed6'],
+                                [0.6, '#2171b5'], [0.8, '#08519c'], [1.0, '#08306b'],
+                            ],
+                            showscale: true,
+                            zsmooth: false,
+                            colorbar: {
+                                thickness: 12,
+                                tickfont: { color: '#94a3b8', size: 10 },
+                                outlinecolor: '#334155',
+                                title: { text: 'Count', side: 'right', font: { color: '#94a3b8', size: 10 } }
+                            }
                         }]}
                         layout={{
-                            title: { text: 'Confusion Matrix' },
-                            xaxis: { title: 'Predicted' },
-                            yaxis: { title: 'Actual' },
+                            title: { text: 'Confusion Matrix', font: { color: '#e2e8f0', size: 14 } },
+                            xaxis: { title: 'Predicted', tickfont: { color: '#94a3b8' }, gridcolor: 'rgba(255,255,255,0.05)' },
+                            yaxis: { title: 'Actual', tickfont: { color: '#94a3b8' }, gridcolor: 'rgba(255,255,255,0.05)' },
                             plot_bgcolor: 'rgba(0,0,0,0)',
                             paper_bgcolor: 'rgba(0,0,0,0)',
                             font: { color: '#94a3b8' },

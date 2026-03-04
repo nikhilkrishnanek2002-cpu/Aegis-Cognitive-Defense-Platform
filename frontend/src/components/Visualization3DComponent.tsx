@@ -34,24 +34,33 @@ export default function Visualization3DComponent() {
     const spec = data3D.spec!
     const spec_vals = spec.map((row) => row.map((v) => Math.abs(v)))
 
-    // Custom Sci-Fi Colorscales
-    const neonCyanColorscale = [
-        [0.0, '#0f2038'], // Deep navy/black background
-        [0.2, '#184c78'], // Dark blue
-        [0.4, '#1b80a6'], // Bright blue
-        [0.6, '#26c4cc'], // Cyan
-        [0.8, '#69eec2'], // Light cyan/green
-        [1.0, '#e2ffda'], // White/cyan core
+    // Real-world Radar Colorscales
+    // Jet colorscale — industry standard for Range-Doppler maps
+    const radarJetColorscale = [
+        [0.0, '#000080'], [0.1, '#0000ff'], [0.2, '#0066ff'],
+        [0.3, '#00ccff'], [0.4, '#00ffcc'], [0.5, '#66ff66'],
+        [0.6, '#ccff00'], [0.7, '#ffcc00'], [0.8, '#ff6600'],
+        [0.9, '#ff0000'], [1.0, '#800000'],
     ]
 
-    const neonPurpleColorscale = [
-        [0.0, '#1a0b2e'], // Deep purple/black background
-        [0.2, '#3b1257'], // Dark purple
-        [0.4, '#6a1a7a'], // Magenta
-        [0.6, '#a4369e'], // Bright pink/purple
-        [0.8, '#d96a84'], // Orange-pink
-        [1.0, '#ffe89b'], // Yellow/White core
+    // Viridis colorscale — perceptually uniform, standard for spectrograms
+    const spectrogramViridisColorscale = [
+        [0.0, '#440154'], [0.1, '#482878'], [0.2, '#3e4989'],
+        [0.3, '#31688e'], [0.4, '#26828e'], [0.5, '#1f9e89'],
+        [0.6, '#35b779'], [0.7, '#6ece58'], [0.8, '#b5de2b'],
+        [0.9, '#e5e419'], [1.0, '#fde725'],
     ]
+
+    // Convert linear values to dB for Range-Doppler display
+    const toDBScale = (data: number[][]) => {
+        return data.map(row => row.map(v => {
+            const clamped = Math.max(v, 1e-6)
+            return 10 * Math.log10(clamped)
+        }))
+    }
+
+    const rd_db = toDBScale(rd_z_vals)
+    const spec_db = toDBScale(spec_vals)
 
     const LayoutBase = {
         plot_bgcolor: '#0a101d', // Slightly transparent blue/gray to match border
@@ -88,23 +97,28 @@ export default function Visualization3DComponent() {
                 </div>
                 <Plot
                     data={[{
-                        z: rd_z_vals,
+                        z: rd_db,
+                        x0: 0, dx: 500 / (rd_db[0]?.length || 1),
+                        y0: -50, dy: 100 / (rd_db.length || 1),
                         type: 'heatmap',
-                        colorscale: neonCyanColorscale as any,
+                        colorscale: radarJetColorscale as any,
                         showscale: true,
+                        zsmooth: 'best',
                         colorbar: {
                             thickness: 15,
-                            tickfont: { color: '#2dd4bf' },
-                            outlinecolor: '#2dd4bf',
-                            bgcolor: 'rgba(0,0,0,0.5)',
+                            tickfont: { color: '#cbd5e1', size: 10 },
+                            outlinecolor: '#475569',
+                            bgcolor: 'rgba(0,0,0,0.6)',
+                            title: { text: 'Power (dB)', side: 'right', font: { color: '#94a3b8', size: 11 } },
+                            ticksuffix: ' dB'
                         }
                     }]}
                     layout={{
                         ...LayoutBase,
-                        xaxis: { ...LayoutBase.xaxis, title: { text: "RANGE (m)", font: { color: '#4fd1c5' } } },
-                        yaxis: { ...LayoutBase.yaxis, title: { text: "DOPPLER (m/s)", font: { color: '#4fd1c5' } } },
+                        xaxis: { ...LayoutBase.xaxis, title: { text: "Range (m)", font: { color: '#94a3b8' } } },
+                        yaxis: { ...LayoutBase.yaxis, title: { text: "Doppler Velocity (m/s)", font: { color: '#94a3b8' } } },
                     } as any}
-                    style={{ width: '100%', height: 350 }}
+                    style={{ width: '100%', height: 380 }}
                     config={{ responsive: true, displayModeBar: false }}
                 />
             </div>
@@ -117,23 +131,28 @@ export default function Visualization3DComponent() {
                 </div>
                 <Plot
                     data={[{
-                        z: spec_vals,
+                        z: spec_db,
+                        x0: 0, dx: 10 / (spec_db[0]?.length || 1),
+                        y0: 0, dy: 5000 / (spec_db.length || 1),
                         type: 'heatmap',
-                        colorscale: neonPurpleColorscale as any,
+                        colorscale: spectrogramViridisColorscale as any,
                         showscale: true,
+                        zsmooth: 'best',
                         colorbar: {
                             thickness: 15,
-                            tickfont: { color: '#fca5a5' },
-                            outlinecolor: '#fca5a5',
-                            bgcolor: 'rgba(0,0,0,0.5)',
+                            tickfont: { color: '#cbd5e1', size: 10 },
+                            outlinecolor: '#475569',
+                            bgcolor: 'rgba(0,0,0,0.6)',
+                            title: { text: 'Power (dB)', side: 'right', font: { color: '#94a3b8', size: 11 } },
+                            ticksuffix: ' dB'
                         }
                     }]}
                     layout={{
                         ...LayoutBase,
-                        xaxis: { ...LayoutBase.xaxis, title: { text: "TIME (s)", font: { color: '#9ca3af' } } },
-                        yaxis: { ...LayoutBase.yaxis, title: { text: "FREQUENCY (Hz)", font: { color: '#9ca3af' } } },
+                        xaxis: { ...LayoutBase.xaxis, title: { text: "Time (s)", font: { color: '#94a3b8' } } },
+                        yaxis: { ...LayoutBase.yaxis, title: { text: "Frequency (Hz)", font: { color: '#94a3b8' } } },
                     } as any}
-                    style={{ width: '100%', height: 350 }}
+                    style={{ width: '100%', height: 380 }}
                     config={{ responsive: true, displayModeBar: false }}
                 />
             </div>

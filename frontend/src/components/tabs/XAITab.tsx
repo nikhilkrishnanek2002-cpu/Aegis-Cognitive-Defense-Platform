@@ -89,16 +89,30 @@ export default function XAITab() {
     const rd_map = frame?.rd_map
     const rd_z_vals = rd_map ? rd_map.map((row) => row.map((v) => Math.abs(v))) : null
 
-    // Custom Sci-Fi Colorscales
-    const neonCyanColorscale = [
-        [0.0, '#0f2038'], [0.2, '#184c78'], [0.4, '#1b80a6'],
-        [0.6, '#26c4cc'], [0.8, '#69eec2'], [1.0, '#e2ffda'],
+    // Real-world Radar Colorscales
+    // Jet colorscale — standard for Range-Doppler maps in radar systems
+    const radarJetColorscale = [
+        [0.0, '#000080'], [0.1, '#0000ff'], [0.2, '#0066ff'],
+        [0.3, '#00ccff'], [0.4, '#00ffcc'], [0.5, '#66ff66'],
+        [0.6, '#ccff00'], [0.7, '#ffcc00'], [0.8, '#ff6600'],
+        [0.9, '#ff0000'], [1.0, '#800000'],
     ]
 
-    const neonPurpleColorscale = [
-        [0.0, '#1a0b2e'], [0.2, '#3b1257'], [0.4, '#6a1a7a'],
-        [0.6, '#a4369e'], [0.8, '#d96a84'], [1.0, '#ffe89b'],
+    // Inferno colorscale — standard for Grad-CAM / activation heatmaps
+    const gradcamInfernoColorscale = [
+        [0.0, '#000004'], [0.1, '#160b39'], [0.2, '#420a68'],
+        [0.3, '#6a176e'], [0.4, '#932667'], [0.5, '#bc3754'],
+        [0.6, '#dd513a'], [0.7, '#f37819'], [0.8, '#fca50a'],
+        [0.9, '#f6d746'], [1.0, '#fcffa4'],
     ]
+
+    // Convert heatmap values to dB scale for display
+    const toDBScale = (data: number[][]) => {
+        return data.map(row => row.map(v => {
+            const clamped = Math.max(v, 1e-6)
+            return 10 * Math.log10(clamped)
+        }))
+    }
 
     const LayoutBase = {
         plot_bgcolor: '#0a101d',
@@ -172,18 +186,28 @@ export default function XAITab() {
                                     </div>
                                     <Plot
                                         data={[{
-                                            z: rd_z_vals,
+                                            z: toDBScale(rd_z_vals),
+                                            x0: 0, dx: 500 / (rd_z_vals[0]?.length || 1),
+                                            y0: -50, dy: 100 / (rd_z_vals.length || 1),
                                             type: 'heatmap',
-                                            colorscale: neonCyanColorscale as any,
+                                            colorscale: radarJetColorscale as any,
                                             showscale: true,
-                                            colorbar: { thickness: 15, tickfont: { color: '#2dd4bf' }, outlinecolor: '#2dd4bf', bgcolor: 'rgba(0,0,0,0.5)' }
+                                            zsmooth: 'best',
+                                            colorbar: {
+                                                thickness: 15,
+                                                tickfont: { color: '#cbd5e1', size: 10 },
+                                                outlinecolor: '#475569',
+                                                bgcolor: 'rgba(0,0,0,0.6)',
+                                                title: { text: 'Power (dB)', side: 'right', font: { color: '#94a3b8', size: 11 } },
+                                                ticksuffix: ' dB'
+                                            }
                                         }]}
                                         layout={{
                                             ...LayoutBase,
-                                            xaxis: { ...LayoutBase.xaxis, title: { text: "RANGE (m)", font: { color: '#4fd1c5' } } },
-                                            yaxis: { ...LayoutBase.yaxis, title: { text: "DOPPLER (m/s)", font: { color: '#4fd1c5' } } },
+                                            xaxis: { ...LayoutBase.xaxis, title: { text: "Range (m)", font: { color: '#94a3b8' } } },
+                                            yaxis: { ...LayoutBase.yaxis, title: { text: "Doppler Velocity (m/s)", font: { color: '#94a3b8' } } },
                                         } as any}
-                                        style={{ width: '100%', height: 350 }}
+                                        style={{ width: '100%', height: 380 }}
                                         config={{ responsive: true, displayModeBar: false }}
                                     />
                                 </div>
@@ -200,16 +224,25 @@ export default function XAITab() {
                                         data={[{
                                             z: gradcamData.heatmap,
                                             type: 'heatmap' as const,
-                                            colorscale: neonPurpleColorscale as any,
+                                            colorscale: gradcamInfernoColorscale as any,
                                             showscale: true,
-                                            colorbar: { thickness: 15, tickfont: { color: '#fca5a5' }, outlinecolor: '#fca5a5', bgcolor: 'rgba(0,0,0,0.5)', title: { text: 'Activation' } }
+                                            zsmooth: 'best',
+                                            zmin: 0,
+                                            zmax: 1,
+                                            colorbar: {
+                                                thickness: 15,
+                                                tickfont: { color: '#cbd5e1', size: 10 },
+                                                outlinecolor: '#475569',
+                                                bgcolor: 'rgba(0,0,0,0.6)',
+                                                title: { text: 'Activation', side: 'right', font: { color: '#94a3b8', size: 11 } },
+                                            }
                                         }]}
                                         layout={{
                                             ...LayoutBase,
-                                            xaxis: { ...LayoutBase.xaxis, title: { text: "RANGE (m)", font: { color: '#9ca3af' } } },
-                                            yaxis: { ...LayoutBase.yaxis, title: { text: "DOPPLER (m/s)", font: { color: '#9ca3af' } } },
+                                            xaxis: { ...LayoutBase.xaxis, title: { text: "Range Bin", font: { color: '#94a3b8' } } },
+                                            yaxis: { ...LayoutBase.yaxis, title: { text: "Doppler Bin", font: { color: '#94a3b8' } } },
                                         } as any}
-                                        style={{ width: '100%', height: 350 }}
+                                        style={{ width: '100%', height: 380 }}
                                         config={{ responsive: true, displayModeBar: false }}
                                     />
                                 </div>
