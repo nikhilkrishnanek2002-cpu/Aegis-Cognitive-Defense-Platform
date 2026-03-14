@@ -27,7 +27,7 @@ RESET  = "\033[0m"
 def banner():
     print(f"""
 {CYAN}{BOLD}  ╔══════════════════════════════════════════════════╗
-  ║   🛰️  AEGIS COGNITIVE DEFENSE PLATFORM v2.0     ║
+  ║   🛰️  AEGIS COGNITIVE DEFENSE PLATFORM v1.0     ║
   ║      AI-Enabled Photonic Radar System            ║
   ╚══════════════════════════════════════════════════╝{RESET}
 """)
