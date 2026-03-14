@@ -2,7 +2,8 @@
 numpy
 scipy
 matplotlib
-streamlit
+pytest
+pytest-asyncio
 
 # Web API Dependencies
 fastapi
