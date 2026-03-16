@@ -135,31 +135,46 @@ function RadarCanvasComponent() {
       // 7. Draw Active Targets
       // We will merge explicit `targets` array with `frame.active_tracks` if they exist
       const combinedTargets = []
+      
+      // Threat level to color mapping
+      const threatColorMap = {
+        'Critical': '#ef4444',
+        'High': '#f97316',
+        'Medium': '#eab308',
+        'Low': '#22c55e',
+        'Unknown': '#2dd4bf'
+      }
 
       if (targets && targets.length > 0) {
         targets.forEach(t => combinedTargets.push({
           distance: t.distance || 0,
           bearing: t.bearing || 0,
-          confidence: 1.0
+          confidence: 1.0,
+          threat_level: t.threat_level || 'Low'
         }))
       }
 
       if (frame && frame.active_tracks) {
-        Object.values(frame.active_tracks).forEach(track => {
+        Object.entries(frame.active_tracks).forEach(([trackId, track], idx) => {
+          // Assign threat levels in a round-robin fashion for demo purposes
+          const threatLevels = ['Critical', 'High', 'Medium', 'Low']
+          const assignedThreatLevel = threatLevels[idx % threatLevels.length]
+          
           combinedTargets.push({
-            distance: track.position ? track.position[0] * 5 : 50, // mock distance scale
-            bearing: track.position ? track.position[1] * 20 : Math.random() * 360, // mock angular mapping
-            confidence: track.confidence || 1.0
+            distance: track.position ? track.position[0] * 5 : 50,
+            bearing: track.position ? track.position[1] * 20 : Math.random() * 360,
+            confidence: track.confidence || 1.0,
+            threat_level: track.threat_level || assignedThreatLevel
           })
         })
       }
 
       // If no real targets, draw some fake ones to show off the UI look exactly like the image
       const displayTargets = combinedTargets.length > 0 ? combinedTargets : [
-        { distance: 60, bearing: 210, confidence: 0.9 },
-        { distance: 80, bearing: 140, confidence: 0.8 },
-        { distance: 40, bearing: 160, confidence: 0.95 },
-        { distance: 90, bearing: 45, confidence: 0.6 },
+        { distance: 60, bearing: 210, confidence: 0.9, threat_level: 'Critical' },
+        { distance: 80, bearing: 140, confidence: 0.8, threat_level: 'High' },
+        { distance: 40, bearing: 160, confidence: 0.95, threat_level: 'Medium' },
+        { distance: 90, bearing: 45, confidence: 0.6, threat_level: 'Low' },
       ]
 
       displayTargets.forEach(t => {
@@ -170,6 +185,9 @@ function RadarCanvasComponent() {
 
         const tx = centerX + Math.cos(angleRad) * clampedDist
         const ty = centerY + Math.sin(angleRad) * clampedDist
+        
+        // Get threat level color
+        const threatColor = threatColorMap[t.threat_level] || threatColorMap['Unknown']
 
         // Draw fading trail extending backward slightly
         ctx.beginPath()
@@ -179,25 +197,25 @@ function RadarCanvasComponent() {
         const tr_y = centerY + Math.sin(trailAngle) * (clampedDist + 20)
         ctx.lineTo(tr_x, tr_y)
         const lineGrad = ctx.createLinearGradient(tx, ty, tr_x, tr_y)
-        lineGrad.addColorStop(0, '#2dd4bf')
-        lineGrad.addColorStop(1, 'rgba(45, 212, 191, 0)')
+        lineGrad.addColorStop(0, threatColor)
+        lineGrad.addColorStop(1, threatColor + '00') // fade to transparent
         ctx.strokeStyle = lineGrad
         ctx.lineWidth = 2
         ctx.stroke()
 
-        // Draw glowing dot
+        // Draw glowing dot with threat color
         ctx.beginPath()
         ctx.arc(tx, ty, 4, 0, Math.PI * 2)
-        ctx.fillStyle = '#e0f2fe'
-        ctx.shadowColor = '#2dd4bf'
-        ctx.shadowBlur = 10
+        ctx.fillStyle = threatColor
+        ctx.shadowColor = threatColor
+        ctx.shadowBlur = 15
         ctx.fill()
 
-        // Outer ring
+        // Outer ring with threat color
         ctx.beginPath()
         ctx.arc(tx, ty, 8, 0, Math.PI * 2)
-        ctx.strokeStyle = 'rgba(45, 212, 191, 0.8)'
-        ctx.lineWidth = 1
+        ctx.strokeStyle = threatColor
+        ctx.lineWidth = 1.5
         ctx.stroke()
         ctx.shadowBlur = 0 // reset
       })

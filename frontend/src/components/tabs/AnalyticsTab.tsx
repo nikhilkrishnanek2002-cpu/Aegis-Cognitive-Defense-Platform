@@ -47,25 +47,34 @@ export default function AnalyticsTab() {
                     <table style={styles.table}>
                         <thead>
                             <tr>
-                                {['Target Name', 'Position (R, D)', 'Velocity', 'State', 'Confidence'].map(h => (
+                                {['Target Name', 'Position (R, D)', 'Velocity', 'State', 'Threat Level', 'Confidence'].map(h => (
                                     <th key={h} style={styles.th}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.entries(frame?.active_tracks ?? {}).map(([tid, t]) => (
-                                <tr key={tid}>
-                                    <td style={styles.td}><span style={{ color: '#60a5fa', fontWeight: 600 }}>{tid ?? '—'}</span></td>
-                                    <td style={styles.td}>{(t?.position?.[0] ?? 0).toFixed(1)}, {(t?.position?.[1] ?? 0).toFixed(1)}</td>
-                                    <td style={styles.td}>{(t?.velocity?.[0] ?? 0).toFixed(2)}, {(t?.velocity?.[1] ?? 0).toFixed(2)}</td>
-                                    <td style={styles.td}>
-                                        <span style={{ color: t?.state === 'confirmed' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>
-                                            {t?.state ?? 'unknown'}
-                                        </span>
-                                    </td>
-                                    <td style={styles.td}>{((t?.confidence ?? 0) * 100).toFixed(1)}%</td>
-                                </tr>
-                            ))}
+                            {Object.entries(frame?.active_tracks ?? {}).map(([tid, t]) => {
+                                const threatLevel = t?.threat_level || 'Low'
+                                const threatColor = priorityColor[threatLevel] || '#60a5fa'
+                                return (
+                                    <tr key={tid}>
+                                        <td style={styles.td}><span style={{ color: '#60a5fa', fontWeight: 600 }}>{tid ?? '—'}</span></td>
+                                        <td style={styles.td}>{(t?.position?.[0] ?? 0).toFixed(1)}, {(t?.position?.[1] ?? 0).toFixed(1)}</td>
+                                        <td style={styles.td}>{(t?.velocity?.[0] ?? 0).toFixed(2)}, {(t?.velocity?.[1] ?? 0).toFixed(2)}</td>
+                                        <td style={styles.td}>
+                                            <span style={{ color: t?.state === 'confirmed' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>
+                                                {t?.state ?? 'unknown'}
+                                            </span>
+                                        </td>
+                                        <td style={styles.td}>
+                                            <span style={{ color: threatColor, fontWeight: 600 }}>
+                                                {threatLevel}
+                                            </span>
+                                        </td>
+                                        <td style={styles.td}>{((t?.confidence ?? 0) * 100).toFixed(1)}%</td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 )}
@@ -96,11 +105,15 @@ export default function AnalyticsTab() {
                     </div>
                     <div style={styles.metricCard}>
                         <div style={styles.metricLabel}>Threat Level</div>
-                        <div style={styles.metricValue}>{(frame?.ew?.threat_level ?? 'unknown').toUpperCase()}</div>
+                        <div style={{ ...styles.metricValue, color: priorityColor[(frame?.ew?.threat_level ?? 'Low').toLowerCase().charAt(0).toUpperCase() + (frame?.ew?.threat_level ?? 'Low').toLowerCase().slice(1)] || '#60a5fa' }}>
+                            {(frame?.ew?.threat_level ?? 'unknown').toUpperCase()}
+                        </div>
                     </div>
                     <div style={styles.metricCard}>
                         <div style={styles.metricLabel}>Active Threats</div>
-                        <div style={styles.metricValue}>{frame?.ew?.num_threats ?? 0}</div>
+                        <div style={{ ...styles.metricValue, color: (frame?.ew?.num_threats ?? 0) > 3 ? '#ef4444' : (frame?.ew?.num_threats ?? 0) > 1 ? '#f97316' : '#22c55e' }}>
+                            {frame?.ew?.num_threats ?? 0}
+                        </div>
                     </div>
                     <div style={styles.metricCard}>
                         <div style={styles.metricLabel}>Cognitive Adaptation</div>

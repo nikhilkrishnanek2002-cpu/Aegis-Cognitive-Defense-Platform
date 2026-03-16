@@ -335,7 +335,8 @@ async def ws_stream_endpoint(websocket: WebSocket) -> None:
                                 track.get("velocity", {}).get("vy", 0)
                             ],
                             "state": "TRACKED",
-                            "confidence": track.get("confidence", 0.8)
+                            "confidence": track.get("confidence", 0.8),
+                            "threat_level": track.get("threat_level", "Low")
                         }
                         for i, track in enumerate(frame_dict.get("tracked_targets", []))
                     },

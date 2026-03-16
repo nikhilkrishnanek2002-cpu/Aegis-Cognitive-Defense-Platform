@@ -84,8 +84,9 @@ class TrackedTarget(BaseModel):
     position: Dict[str, float]      # {x, y, z} or {range, bearing, altitude}
     velocity: Dict[str, float]      # velocity vector
     hits: int                        # number of hits
-    age: int                        # frames since first detection
+    age: int                         # frames since first detection
     confidence: float = Field(0.0, ge=0.0, le=1.0)
+    threat_level: Optional[str] = "Low"  # threat level for visualization
     last_update: datetime
 
 

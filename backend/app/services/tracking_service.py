@@ -49,6 +49,11 @@ class KalmanTracker:
     
     def to_tracked_target(self) -> TrackedTarget:
         """Convert to schema."""
+        # Map confidence to threat level
+        threat_levels = ["Low", "Medium", "High", "Critical"]
+        threat_idx = min(3, int(self.confidence * 4))
+        threat_level = threat_levels[threat_idx]
+        
         return TrackedTarget(
             track_id=self.track_id,
             target_type=self.target_type,
@@ -57,6 +62,7 @@ class KalmanTracker:
             hits=self.hits,
             age=self.age,
             confidence=self.confidence,
+            threat_level=threat_level,
             last_update=self.last_update
         )
 
