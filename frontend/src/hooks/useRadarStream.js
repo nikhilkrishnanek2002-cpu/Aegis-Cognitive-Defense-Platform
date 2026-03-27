@@ -22,6 +22,27 @@ export const useRadarStream = () => {
           }
           if (radarData.targets) {
             setTargets(radarData.targets)
+            
+            // Sync active targets to threatStore for the intercept feature to use
+            const { setThreats, threats } = useThreatStore.getState()
+            
+            // Generate standard threat models from radar targets
+            const mappedThreats = radarData.targets.map(t => {
+                // Find existing threat to preserve neutralized status
+                const existing = threats.find(eth => eth.id === t.id)
+                if (existing) return { ...t, ...existing }
+                
+                return {
+                    id: t.id,
+                    type: t.threat_level === 'HIGH' ? 'missile' : (t.velocity > 50 ? 'aircraft' : 'drone'),
+                    level: t.threat_level === 'HIGH' ? 'Critical' : (t.threat_level === 'MEDIUM' ? 'Medium' : 'Low'),
+                    status: 'Active',
+                    distance: t.y ? Math.round(Math.abs(t.y)) : 0, 
+                    bearing: t.x ? Math.round(Math.abs((Math.atan2(t.x, t.y) * 180 / Math.PI) + 180)) : 0,
+                    ...t
+                }
+            })
+            setThreats(mappedThreats)
           }
           if (radarData.scan_id) {
             addScanHistoryEntry({

@@ -1,0 +1,76 @@
+experiment:
+  name: optimized_photonic_radar
+  seed: 42
+  output_root: outputs
+  description: >-
+    Optimized training configuration for cognitive photonic radar AI model.
+    Features: proper metadata normalization, batch normalization, gradient clipping,
+    realistic clutter generation, and adaptive learning rate scheduling.
+    Target: >90% accuracy on 6-class radar target classification.
+
+data:
+  source: synthetic
+  samples_per_class: 400  # Increased for better generalization
+  train_split: 0.8
+  augmentation_factor: 3  # Duplicate train set with light augmentations
+  simulation:
+    signature_boost: 1.8
+    noise_scale: 0.006
+    clutter_scale: 0.6
+    multipath_coef: 0.2
+    meta_noise_std: 0.05
+    class_signature_boost:
+      drone: 1.0
+      aircraft: 1.15
+      bird: 0.85
+      helicopter: 1.25
+      missile: 1.35
+      clutter: 1.0
+
+training:
+  epochs: 50              # More epochs for convergence
+  batch_size: 32          # Larger batch for stable gradients
+  learning_rate: 0.0005   # Lower initial LR with potential scheduling
+  device: auto
+  weight_decay: 0.001     # Regularization to reduce overfitting
+  label_smoothing: 0.05
+  early_stopping:
+    patience: 8
+    min_delta: 0.002
+    restore_best: true
+  
+  # Gradient clipping configuration
+  gradient_clip_norm: 1.0
+  
+  # Learning rate scheduler (optional step-based decay)
+  lr_schedule:
+    type: step
+    step_size: 8
+    gamma: 0.6
+
+  mixup:
+    alpha: 0.4
+
+  cutmix:
+    alpha: 0.6
+    prob: 0.5
+
+evaluation:
+  batch_size: 64          # Larger eval batch size for efficiency
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - confusion_matrix
+
+logging:
+  level: INFO
+  save_interval: 5        # Save checkpoint every 5 epochs
+
+model:
+  architecture: photonic_radar_ai
+  num_classes: 6
+  dropout_rate: 0.3
+  use_batch_norm: true    # Enable batch normalization
+  use_layer_norm: true    # Enable layer normalization in metadata branch

@@ -23,8 +23,8 @@ class EnvironmentConfig {
       // ─── WebSocket Configuration ──────────────────────────────────
       // WebSocket base URL: ws://localhost:8000 (dev) or from origin (prod)
       wsUrl: wsUrl,
-      wsPath: '/ws/radar-stream',
-      wsBaseUrl: `${wsUrl}/ws/radar-stream`,
+      wsPath: '/ws/stream',
+      wsBaseUrl: `${wsUrl}/ws/stream`,
       
       // ─── Debugging & Performance ──────────────────────────────────
       debug: import.meta.env.VITE_DEBUG === 'true' || false,

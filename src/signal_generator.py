@@ -12,7 +12,16 @@ if USE_RTL_SDR:
     rtl = RTLRadar()
 
 
-def generate_radar_signal(target_type, distance=100, fs=4096):
+def generate_radar_signal(
+    target_type,
+    distance=100,
+    fs=4096,
+    signature_boost=1.0,
+    noise_scale=0.01,
+    clutter_scale=1.0,
+    multipath_coef=0.3,
+    class_signature_boost=None,
+):
     cfg = get_config()
     photonic_cfg = cfg.get("photonic_model", {})
     use_photonic = photonic_cfg.get("enabled", False)
@@ -60,29 +69,35 @@ def generate_radar_signal(target_type, distance=100, fs=4096):
         # ---- Advanced Synthetic Generation ----
         t = np.linspace(0, 1, fs)
 
+        class_signature_boost = class_signature_boost or {}
+        signature_scale = float(class_signature_boost.get(target_type, 1.0))
+
         # Randomize chirp parameters slightly for each generation
-        f0_offset = np.random.uniform(-50, 50)
-        f1_offset = np.random.uniform(-100, 100)
+        offset_scale = 1.0 / max(signature_boost, 1.0)
+        f0_offset = np.random.uniform(-50, 50) * offset_scale
+        f1_offset = np.random.uniform(-100, 100) * offset_scale
         
         # Base Signal Generation (Modulation depends on target)
         if target_type == "drone":
-            base_sig = chirp(t, 100+f0_offset, 1, 200+f1_offset) 
-            micro_doppler = 0.2 * np.sin(2 * np.pi * 50 * t) 
+            base_sig = chirp(t, (100+f0_offset) * signature_scale, 1, (200+f1_offset) * signature_scale)
+            micro_doppler = 0.2 * signature_boost * np.sin(2 * np.pi * (50 * signature_scale) * t)
         elif target_type == "aircraft":
-            base_sig = chirp(t, 300+f0_offset, 1, 500+f1_offset)
-            micro_doppler = 0.05 * np.sin(2 * np.pi * 10 * t)
+            base_sig = chirp(t, (300+f0_offset) * signature_scale, 1, (500+f1_offset) * signature_scale)
+            micro_doppler = 0.05 * signature_boost * np.sin(2 * np.pi * (10 * signature_scale) * t)
         elif target_type == "missile":
-            base_sig = chirp(t, 800+f0_offset, 1, 1500+f1_offset)
-            micro_doppler = 0.0 
-        elif target_type == "helicopter":
-            base_sig = chirp(t, 200+f0_offset, 1, 300+f1_offset) 
-            micro_doppler = 0.8 * np.sin(2 * np.pi * 120 * t)
-        elif target_type == "bird":
-            base_sig = chirp(t, 50+f0_offset, 1, 80+f1_offset) 
-            micro_doppler = 0.3 * np.sin(2 * np.pi * 2 * t)
-        elif target_type == "clutter":
-            base_sig = 0.0
+            base_sig = chirp(t, (800+f0_offset) * signature_scale, 1, (1500+f1_offset) * signature_scale)
             micro_doppler = 0.0
+        elif target_type == "helicopter":
+            base_sig = chirp(t, (200+f0_offset) * signature_scale, 1, (300+f1_offset) * signature_scale)
+            micro_doppler = 0.8 * signature_boost * np.sin(2 * np.pi * (120 * signature_scale) * t)
+        elif target_type == "bird":
+            base_sig = chirp(t, (50+f0_offset) * signature_scale, 1, (80+f1_offset) * signature_scale)
+            micro_doppler = 0.3 * signature_boost * np.sin(2 * np.pi * (2 * signature_scale) * t)
+        elif target_type == "clutter":
+            # ⭐ CRITICAL FIX: Generate realistic clutter noise instead of zeros
+            # Clutter is random reflections from ground, weather, etc.
+            base_sig = np.random.normal(0, 0.3, len(t)) + np.random.normal(0, 0.1, len(t)) * chirp(t, 10, 1, 20)
+            micro_doppler = 0.1 * signature_boost * np.random.normal(0, 1, len(t))
         else:
             base_sig = np.random.normal(0, 0.1, len(t))
             micro_doppler = 0
@@ -92,7 +107,9 @@ def generate_radar_signal(target_type, distance=100, fs=4096):
             target_signal = (base_sig + micro_doppler) * attenuation * rcs_fluctuation
             base_signal = target_signal * np.exp(1j * np.pi / 4) # IQ conversion
         else:
-            base_signal = np.zeros(len(t), dtype=np.complex64)
+            # ⭐ FIX: Apply target physics to clutter signal too
+            target_signal = (base_sig + micro_doppler) * attenuation * rcs_fluctuation
+            base_signal = target_signal * np.exp(1j * np.pi / 4)
         
     # ==========================================
     # COMMON ENVIRONMENTAL & CHANNEL EFFECTS
@@ -105,21 +122,21 @@ def generate_radar_signal(target_type, distance=100, fs=4096):
     # Shape parameter k < 2 gives heavy tails (spiky clutter)
     k_weibull = 0.8 
     scale_weibull = 0.15
-    clutter_amp = scale_weibull * np.random.weibull(k_weibull, size=len(t))
+    clutter_amp = (scale_weibull * clutter_scale) * np.random.weibull(k_weibull, size=len(t))
     clutter_phase = np.random.uniform(0, 2*np.pi, len(t))
     clutter = clutter_amp * np.exp(1j * clutter_phase)
 
     # 2. Multipath Interference (Ground bounce)
     # Delayed and attenuated copy of the signal
     multipath_delay = int(fs * 0.05) # 50ms delay
-    multipath_coef = 0.3 # Reflection coefficient
+    # multipath_coef is provided as a function parameter
     
     multipath_sig = np.zeros_like(base_signal)
     if multipath_delay < len(t):
         multipath_sig[multipath_delay:] = base_signal[:-multipath_delay] * multipath_coef
     
     # 3. Thermal Noise
-    thermal_noise = (np.random.normal(0, 0.01, len(t)) + 1j*np.random.normal(0, 0.01, len(t)))
+    thermal_noise = (np.random.normal(0, noise_scale, len(t)) + 1j*np.random.normal(0, noise_scale, len(t)))
     
     # 4. Total Signal Composition
     total_signal = base_signal + multipath_sig + clutter + thermal_noise

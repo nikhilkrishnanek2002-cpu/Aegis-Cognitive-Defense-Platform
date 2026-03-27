@@ -6,6 +6,8 @@ export const selectActiveThreats = (state) => state.activeThreats
 export const selectThreats = (state) => state.threats
 export const selectEWThreats = (state) => state.ewThreats
 export const selectSelectedThreat = (state) => state.selectedThreat
+export const selectNeutralizedThreats = (state) => state.neutralizedThreats
+export const selectEngagementLog = (state) => state.engagementLog
 
 // Computed selectors
 export const selectThreatCount = (state) => state.activeThreats.length
@@ -20,6 +22,8 @@ export const useThreatStore = create(
     threatHistory: [],
     ewThreats: [],
     selectedThreat: null,
+    neutralizedThreats: [],
+    engagementLog: [],
 
     // Setters (optimized)
     setThreats: (threats) =>
@@ -54,6 +58,33 @@ export const useThreatStore = create(
       state.selectedThreat === threat ? state : { selectedThreat: threat }
     ),
 
+    // Intercept / Neutralize a threat
+    launchInterceptor: (threatId) =>
+      set((state) => {
+        const threat = state.activeThreats.find((t) => t.id === threatId)
+        if (!threat) return state
+        const neutralized = { ...threat, status: 'Neutralized', neutralizedAt: new Date() }
+        const logEntry = {
+          id: `eng-${Date.now()}`,
+          threatId,
+          type: threat.type || 'Unknown',
+          level: threat.level || 'Unknown',
+          timestamp: new Date(),
+          bearing: threat.bearing,
+          distance: threat.distance,
+        }
+        return {
+          activeThreats: state.activeThreats.map((t) =>
+            t.id === threatId ? { ...t, status: 'Neutralized' } : t
+          ),
+          threats: state.threats.map((t) =>
+            t.id === threatId ? { ...t, status: 'Neutralized' } : t
+          ),
+          neutralizedThreats: [neutralized, ...state.neutralizedThreats],
+          engagementLog: [logEntry, ...state.engagementLog].slice(0, 50),
+        }
+      }),
+
     // Computed
     getThreatCount: () => useThreatStore.getState().activeThreats.length,
     getCriticalCount: () =>
@@ -65,6 +96,8 @@ export const useThreatStore = create(
         threatHistory: [],
         ewThreats: [],
         selectedThreat: null,
+        neutralizedThreats: [],
+        engagementLog: [],
       }),
   }))
 )

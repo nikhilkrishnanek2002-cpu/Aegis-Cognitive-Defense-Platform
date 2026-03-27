@@ -1,7 +1,7 @@
 import { useThreatStore } from '../../store/threatStore'
 import { ThreatCard } from '../threat/ThreatCard'
 
-export function TargetOverlay() {
+export function TargetOverlay({ onIntercept }) {
   const { activeThreats, setSelectedThreat } = useThreatStore()
 
   if (activeThreats.length === 0) {
@@ -19,6 +19,7 @@ export function TargetOverlay() {
           key={threat.id}
           threat={threat}
           onClick={() => setSelectedThreat(threat)}
+          onIntercept={onIntercept}
         />
       ))}
     </div>
@@ -26,3 +27,4 @@ export function TargetOverlay() {
 }
 
 export default TargetOverlay
+

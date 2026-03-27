@@ -5,11 +5,14 @@ import torch.nn.functional as F
 class RadarCNNBranch(nn.Module):
     """
     CNN Branch for processing 2D radar images (Range-Doppler or Spectrogram).
+    Enhanced with batch normalization for stability.
     """
     def __init__(self, input_shape=(128, 128)):
         super(RadarCNNBranch, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
         self.pool = nn.MaxPool2d(2, 2)
         self.dropout = nn.Dropout(0.3)
         
@@ -25,8 +28,8 @@ class RadarCNNBranch(nn.Module):
         while x.dim() > 4:
             x = x.squeeze(1)
         
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
         x = self.dropout(x)
         x = x.view(-1, self.flattened_size)
         return x
@@ -35,6 +38,7 @@ class PhotonicRadarAI(nn.Module):
     """
     Multi-input Cognitive Photonic Radar AI Architecture.
     Fuses Range-Doppler map, Spectrogram, and Photonic metadata.
+    Enhanced with batch normalization and layer normalization for stability.
     """
     def __init__(self, num_classes=6, metadata_size=8):
         super(PhotonicRadarAI, self).__init__()
@@ -46,17 +50,20 @@ class PhotonicRadarAI(nn.Module):
         # Assuming spectrogram is also resized to 128x128 or similar
         self.spec_branch = RadarCNNBranch(input_shape=(128, 128))
         
-        # 3. Metadata Branch
+        # 3. Metadata Branch with layer normalization
         self.meta_branch = nn.Sequential(
             nn.Linear(metadata_size, 32),
+            nn.LayerNorm(32),
             nn.ReLU(),
             nn.Linear(32, 16),
+            nn.LayerNorm(16),
             nn.ReLU()
         )
         
-        # Fusion and Head
+        # Fusion and Head with batch normalization
         combined_size = self.rd_branch.flattened_size + self.spec_branch.flattened_size + 16
         self.fc_fusion = nn.Linear(combined_size, 128)
+        self.bn_fusion = nn.BatchNorm1d(128)
         self.classifier = nn.Linear(128, num_classes)
         
     def forward(self, rd_map, spectrogram, metadata):
@@ -67,7 +74,7 @@ class PhotonicRadarAI(nn.Module):
         # Fuse features
         combined = torch.cat((rd_feat, spec_feat, meta_feat), dim=1)
         
-        x = F.relu(self.fc_fusion(combined))
+        x = F.relu(self.bn_fusion(self.fc_fusion(combined)))
         x = self.classifier(x)
         return x # Return logits instead of softmax for training stability
 
