@@ -37,7 +37,7 @@ def test_swerling_fluctuation():
     amps = []
     for _ in range(20): # Increased samples for better stats
         # Use close range (10m) so target dominates clutter/noise
-        sig = generate_radar_signal("missile", distance=10, fs=4096)
+        sig = generate_radar_signal("drone", distance=10, fs=4096)
         amps.append(np.mean(np.abs(sig)))
     
     # Check coefficient of variation to ensure fluctuation

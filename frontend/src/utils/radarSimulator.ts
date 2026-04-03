@@ -6,7 +6,7 @@
 export interface SimulatedTarget {
   id: string
   name: string
-  type: 'DRONE' | 'AIRCRAFT' | 'HELICOPTER' | 'BIRD' | 'MISSILE' | 'UNKNOWN'
+  type: 'DRONE' | 'AIRCRAFT' | 'HELICOPTER' | 'BIRD' | 'UNKNOWN'
   x: number
   y: number
   velocity: number
@@ -31,7 +31,7 @@ export interface SimulatedMetrics {
 class SimulatedTarget_ implements SimulatedTarget {
   id: string
   name: string
-  type: 'DRONE' | 'AIRCRAFT' | 'HELICOPTER' | 'BIRD' | 'MISSILE' | 'UNKNOWN'
+  type: 'DRONE' | 'AIRCRAFT' | 'HELICOPTER' | 'BIRD' | 'UNKNOWN'
   x: number
   y: number
   vx: number
@@ -44,7 +44,7 @@ class SimulatedTarget_ implements SimulatedTarget {
   timestamp: string
 
   private static targetCounter = 0
-  private static typeNames = ['DRONE', 'AIRCRAFT', 'HELICOPTER', 'BIRD', 'MISSILE'] as const
+  private static typeNames = ['DRONE', 'AIRCRAFT', 'HELICOPTER', 'BIRD'] as const
 
   constructor() {
     const types = SimulatedTarget_.typeNames

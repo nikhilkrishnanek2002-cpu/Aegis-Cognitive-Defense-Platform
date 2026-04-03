@@ -1,18 +1,16 @@
 import { useEffect, useRef, memo } from 'react'
 import { selectRadarCanvasData, useRadarStore } from '../../store/radarStore'
 
-function RadarCanvasComponent({ missiles = [], explosions = [], neutralizedIds = [] }) {
+function RadarCanvasComponent({ explosions = [], neutralizedIds = [] }) {
   const canvasRef = useRef(null)
   const { targets, frame } = useRadarStore(selectRadarCanvasData)
 
   const sweepAngleRef = useRef(0)
   const animationRef = useRef(null)
 
-  // Keep latest missiles/explosions/neutralized accessible inside rAF without re-subscribing
-  const missilesRef = useRef(missiles)
+  // Keep latest explosions/neutralized accessible inside rAF without re-subscribing
   const explosionsRef = useRef(explosions)
   const neutralizedIdsRef = useRef(neutralizedIds)
-  useEffect(() => { missilesRef.current = missiles }, [missiles])
   useEffect(() => { explosionsRef.current = explosions }, [explosions])
   useEffect(() => { neutralizedIdsRef.current = neutralizedIds }, [neutralizedIds])
 
@@ -218,48 +216,7 @@ function RadarCanvasComponent({ missiles = [], explosions = [], neutralizedIds =
         ctx.shadowBlur = 0
       })
 
-      // 8. Draw Missile Projectiles
-      missilesRef.current.forEach(m => {
-        const mx = m.fromX + (m.toX - m.fromX) * m.progress
-        const my = m.fromY + (m.toY - m.fromY) * m.progress
-        const dx = m.toX - m.fromX
-        const dy = m.toY - m.fromY
-        const ang = Math.atan2(dy, dx)
-
-        // Glow trail
-        const trailLen = 20
-        const trailX = mx - Math.cos(ang) * trailLen
-        const trailY = my - Math.sin(ang) * trailLen
-        const missileGrad = ctx.createLinearGradient(trailX, trailY, mx, my)
-        missileGrad.addColorStop(0, 'rgba(239,68,68,0)')
-        missileGrad.addColorStop(1, 'rgba(239,68,68,0.9)')
-        ctx.beginPath()
-        ctx.moveTo(trailX, trailY)
-        ctx.lineTo(mx, my)
-        ctx.strokeStyle = missileGrad
-        ctx.lineWidth = 2.5
-        ctx.shadowColor = '#ef4444'
-        ctx.shadowBlur = 10
-        ctx.stroke()
-
-        // Arrowhead
-        ctx.save()
-        ctx.translate(mx, my)
-        ctx.rotate(ang)
-        ctx.beginPath()
-        ctx.moveTo(9, 0)
-        ctx.lineTo(-6, 5)
-        ctx.lineTo(-6, -5)
-        ctx.closePath()
-        ctx.fillStyle = '#fbbf24'
-        ctx.shadowColor = '#fbbf24'
-        ctx.shadowBlur = 14
-        ctx.fill()
-        ctx.restore()
-        ctx.shadowBlur = 0
-      })
-
-      // 9. Draw Explosions
+      // 8. Draw Explosions
       explosionsRef.current.forEach(e => {
         // Outer expanding ring
         ctx.beginPath()
@@ -327,7 +284,6 @@ function RadarCanvasComponent({ missiles = [], explosions = [], neutralizedIds =
 
 function arePropsEqual(prev, next) {
   return (
-    prev.missiles === next.missiles &&
     prev.explosions === next.explosions &&
     prev.neutralizedIds === next.neutralizedIds
   )

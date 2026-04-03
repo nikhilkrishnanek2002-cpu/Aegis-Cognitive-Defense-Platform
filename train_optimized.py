@@ -47,7 +47,7 @@ def build_train_val_datasets(
     sim_params: dict | None = None,
     meta_noise_std: float = 0.0,
 ) -> Tuple[TensorDataset, TensorDataset]:
-    classes = ["drone", "aircraft", "bird", "helicopter", "missile", "clutter"]
+    classes = ["drone", "aircraft", "bird", "helicopter", "clutter"]
     rd_list, spec_list, meta_list, y_list = [], [], [], []
 
     print("Generating simulated photonic radar dataset...")

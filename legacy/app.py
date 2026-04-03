@@ -87,14 +87,13 @@ ensure_admin_exists()
 # ===============================
 # CONSTANTS
 # ===============================
-LABELS = ["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"]
+LABELS = ["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"]
 
 PRIORITY = {
     "Drone": "High",
     "Aircraft": "Medium",
     "Bird": "Low",
     "Helicopter": "High",
-    "Missile": "Critical",
     "Clutter": "Low",
     "Unknown": "Low"
 }

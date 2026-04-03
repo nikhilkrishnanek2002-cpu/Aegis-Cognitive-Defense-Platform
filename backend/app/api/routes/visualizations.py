@@ -64,14 +64,13 @@ async def get_confusion_matrix(user: dict = Depends(get_current_user)) -> Dict[s
             return {
                 "status": "ok",
                 "confusion_matrix": {
-                    "labels": ["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"],
+                    "labels": ["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"],
                     "matrix": [
-                        [95, 2, 1, 0, 0, 2],
-                        [1, 94, 2, 1, 0, 2],
-                        [3, 1, 91, 2, 0, 3],
-                        [0, 2, 1, 93, 1, 3],
-                        [0, 0, 0, 0, 98, 2],
-                        [2, 1, 2, 2, 0, 93]
+                        [95, 2, 1, 0, 2],
+                        [1, 94, 2, 1, 2],
+                        [3, 1, 91, 2, 3],
+                        [0, 2, 1, 93, 4],
+                        [2, 1, 2, 2, 93]
                     ]
                 }
             }

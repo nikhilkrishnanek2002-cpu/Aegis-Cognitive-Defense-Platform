@@ -37,8 +37,6 @@ def generate_radar_signal(
         rcs_fluctuation = np.random.gamma(2, 2)
     elif target_type == "aircraft":
         rcs_fluctuation = np.random.exponential(1)
-    elif target_type == "missile":
-        rcs_fluctuation = np.random.exponential(1)
     elif target_type == "helicopter":
         rcs_fluctuation = np.random.lognormal(0, 0.5)
     elif target_type == "bird":
@@ -84,9 +82,6 @@ def generate_radar_signal(
         elif target_type == "aircraft":
             base_sig = chirp(t, (300+f0_offset) * signature_scale, 1, (500+f1_offset) * signature_scale)
             micro_doppler = 0.05 * signature_boost * np.sin(2 * np.pi * (10 * signature_scale) * t)
-        elif target_type == "missile":
-            base_sig = chirp(t, (800+f0_offset) * signature_scale, 1, (1500+f1_offset) * signature_scale)
-            micro_doppler = 0.0
         elif target_type == "helicopter":
             base_sig = chirp(t, (200+f0_offset) * signature_scale, 1, (300+f1_offset) * signature_scale)
             micro_doppler = 0.8 * signature_boost * np.sin(2 * np.pi * (120 * signature_scale) * t)

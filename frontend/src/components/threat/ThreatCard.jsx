@@ -15,7 +15,6 @@ export function ThreatCard({ threat, onClick, onIntercept }) {
   const threatType = {
     drone: '🛸 Drone',
     aircraft: '✈️ Aircraft',
-    missile: '🚀 Missile',
     jamming: '📡 JAMMING',
     spoofing: '🔀 SPOOFING',
   }

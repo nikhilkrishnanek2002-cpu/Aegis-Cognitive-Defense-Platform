@@ -69,8 +69,8 @@ class TestActionSpace:
     def test_action_count(self):
         """Test correct number of actions."""
         space = ActionSpace()
-        # 4 gain levels x 4 distance levels x 6 targets = 96
-        assert space.num_actions == 96
+        # 4 gain levels x 4 distance levels x 5 targets = 80
+        assert space.num_actions == 80
     
     def test_get_action(self):
         """Test action retrieval."""
@@ -290,7 +290,7 @@ class TestCognitiveRadarController:
         controller = CognitiveRadarController()
         
         # Set manual override
-        controller.set_manual_override(25.0, 400.0, "Missile")
+        controller.set_manual_override(25.0, 400.0, "Aircraft")
         assert controller.manual_override_mode == True
         
         state = controller.observe(0.5, 0.5, 1, 10, 0, 15.0)
@@ -299,7 +299,7 @@ class TestCognitiveRadarController:
         # Should use override
         assert action.gain_db == 25.0
         assert action.distance_m == 400.0
-        assert action.target_type == "Missile"
+        assert action.target_type == "Aircraft"
         
         # Override should be consumed
         assert controller.manual_override_mode == False
@@ -307,7 +307,7 @@ class TestCognitiveRadarController:
     def test_disable_manual_override(self):
         """Test disabling manual override."""
         controller = CognitiveRadarController()
-        controller.set_manual_override(25.0, 400.0, "Missile")
+        controller.set_manual_override(25.0, 400.0, "Aircraft")
         controller.disable_manual_override()
         
         assert controller.manual_override_mode == False

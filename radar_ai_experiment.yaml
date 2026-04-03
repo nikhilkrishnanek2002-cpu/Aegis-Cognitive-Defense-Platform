@@ -29,14 +29,13 @@ dataset:
   
   # Dataset generation
   samples_per_class: 50                 # Samples to generate per class
-  n_classes: 6                          # Number of radar target classes
+  n_classes: 5                          # Number of radar target classes
   classes:
     - "drone"                           # Class 0
     - "aircraft"                        # Class 1
     - "bird"                            # Class 2
     - "helicopter"                      # Class 3
-    - "missile"                         # Class 4
-    - "clutter"                         # Class 5
+    - "clutter"                         # Class 4
   
   # Data split (if generating synthetic)
   train_split: 0.7                      # 70% training
@@ -408,13 +407,12 @@ performance:
 ################################################################################
 notes:
   dataset: |
-    Six-class radar target classification dataset:
+    Five-class radar target classification dataset:
     0: Drone (typically small, fast)
     1: Aircraft (larger, slower)
     2: Bird (irregular, fluttering)
     3: Helicopter (rotating blades signature)
-    4: Missile (high speed, transient)
-    5: Clutter (stationary background, noise)
+    4: Clutter (stationary background, noise)
   
   features: |
     Three feature types extracted from radar signal:

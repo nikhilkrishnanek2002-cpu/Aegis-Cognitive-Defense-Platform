@@ -26,7 +26,7 @@ from src.ai_hardening import (
 class SimpleModel(nn.Module):
     """Simple test model for hardening tests."""
     
-    def __init__(self, num_classes=6, input_dim=128):
+    def __init__(self, num_classes=5, input_dim=128):
         super().__init__()
         self.features = nn.Sequential(
             nn.Linear(input_dim, 64),
@@ -276,7 +276,7 @@ class TestAIReliabilityHardener:
     @pytest.fixture
     def model(self):
         """Create test model."""
-        return SimpleModel(num_classes=6, input_dim=128)
+        return SimpleModel(num_classes=5, input_dim=128)
     
     @pytest.fixture
     def hardener(self, model):
@@ -288,7 +288,7 @@ class TestAIReliabilityHardener:
             'disagreement_threshold': 0.3
         }
         hardener = AIReliabilityHardener(model, config)
-        hardener.set_labels(["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"])
+        hardener.set_labels(["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"])
         return hardener
     
     def test_initialization(self, hardener):
@@ -440,14 +440,14 @@ class TestEndToEndHardening:
     def test_full_pipeline(self):
         """Test complete hardening pipeline."""
         # Create model and hardener
-        model = SimpleModel(num_classes=6, input_dim=128)
+        model = SimpleModel(num_classes=5, input_dim=128)
         hardener = AIReliabilityHardener(model, {
             'confidence_threshold': 0.7,
             'entropy_threshold': 1.0,
             'ood_threshold': 0.5
         })
         
-        labels = ["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"]
+        labels = ["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"]
         hardener.set_labels(labels)
         
         # Simulate multiple radar detections

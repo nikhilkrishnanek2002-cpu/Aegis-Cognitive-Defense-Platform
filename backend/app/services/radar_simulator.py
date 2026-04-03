@@ -13,7 +13,7 @@ import time
 class RadarSimulator:
     """Simulates continuous radar scanning with realistic target motion."""
     
-    TARGET_TYPES = ["DRONE", "AIRCRAFT", "HELICOPTER", "BIRD", "MISSILE", "UNKNOWN"]
+    TARGET_TYPES = ["DRONE", "AIRCRAFT", "HELICOPTER", "BIRD", "UNKNOWN"]
     
     def __init__(self):
         self.scan_count = 0

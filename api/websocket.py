@@ -56,7 +56,7 @@ async def radar_broadcast_loop():
     results to all connected WebSocket clients.
     """
     from api.routes.radar import _run_full_pipeline
-    target_cycle = ["drone", "aircraft", "missile", "helicopter", "bird", "clutter"]
+    target_cycle = ["drone", "aircraft", "helicopter", "bird", "clutter"]
     idx = 0
     while True:
         try:

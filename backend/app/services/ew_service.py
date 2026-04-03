@@ -40,18 +40,18 @@ class EWResponseEngine:
     
     def select_response(self, threat: Threat) -> str:
         """Select appropriate EW response based on threat."""
-        # Missiles trigger jamming/spoofing
         # Aircraft trigger deception
         # Drones trigger multi-faceted response
+        # Helicopters trigger jamming
         
         from app.models.schemas import TargetType
         
-        if threat.target_type == TargetType.MISSILE:
-            return "JAMMING"
-        elif threat.target_type == TargetType.AIRCRAFT:
+        if threat.target_type == TargetType.AIRCRAFT:
             return "DECEPTION"
         elif threat.target_type == TargetType.DRONE:
             return "SPOOFING"
+        elif threat.target_type == TargetType.HELICOPTER:
+            return "JAMMING"
         else:
             return np.random.choice(self.response_types)
     

@@ -556,7 +556,7 @@ if __name__ == "__main__":
         'ood_threshold': 0.5
     })
     
-    labels = ["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"]
+    labels = ["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"]
     hardener.set_labels(labels)
     
     # Test multiple inferences

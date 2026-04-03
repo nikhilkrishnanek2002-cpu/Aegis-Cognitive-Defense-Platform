@@ -13,7 +13,7 @@ import LogsTab from '../components/tabs/LogsTab'
 import AdminTab from '../components/tabs/AdminTab'
 import RadarLive from './RadarLive'
 
-const TABS = ['📡 Real-Time Analytics', '🧠 Explainable AI', '💡 Photonic Params', '📊 Research Metrics', '📋 System Logs', '⚙️ Admin Panel', '🚀 Missile Defense']
+const TABS = ['📡 Real-Time Analytics', '🧠 Explainable AI', '💡 Photonic Params', '📊 Research Metrics', '📋 System Logs', '⚙️ Admin Panel']
 
 export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState(0)

@@ -20,7 +20,6 @@ class ThreatAssessmentEngine:
         
         # Target threat base scores (lower = less threatening)
         self.target_threat_scores = {
-            TargetType.MISSILE: 0.95,
             TargetType.AIRCRAFT: 0.70,
             TargetType.HELICOPTER: 0.75,
             TargetType.DRONE: 0.60,

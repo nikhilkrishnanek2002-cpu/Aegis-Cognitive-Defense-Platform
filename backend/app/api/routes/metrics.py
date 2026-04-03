@@ -260,11 +260,10 @@ async def get_metrics_report():
             "AIRCRAFT": {"precision": 0.87, "recall": 0.91, "f1": 0.89, "support": 1836},
             "BIRD": {"precision": 0.78, "recall": 0.82, "f1": 0.80, "support": 1624},
             "HELICOPTER": {"precision": 0.88, "recall": 0.85, "f1": 0.865, "support": 1456},
-            "MISSILE": {"precision": 0.94, "recall": 0.92, "f1": 0.93, "support": 1834},
             "CLUTTER": {"precision": 0.85, "recall": 0.88, "f1": 0.865, "support": 2049},
             "UNKNOWN": {"precision": 0.72, "recall": 0.75, "f1": 0.735, "support": 1000},
             "accuracy": None,
-            "macro avg": {"precision": 0.871, "recall": 0.885, "f1": 0.878, "support": 12847},
-            "weighted avg": {"precision": 0.893, "recall": 0.894, "f1": 0.893, "support": 12847}
+            "macro avg": {"precision": 0.862, "recall": 0.862, "f1": 0.862, "support": 9965},
+            "weighted avg": {"precision": 0.877, "recall": 0.878, "f1": 0.877, "support": 9965}
         }
     }

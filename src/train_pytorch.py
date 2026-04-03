@@ -155,7 +155,7 @@ class CheckpointManager:
 
 
 def create_pytorch_dataset(samples_per_class=50):
-    classes = ["drone", "aircraft", "bird", "helicopter", "missile", "clutter"]
+    classes = ["drone", "aircraft", "bird", "helicopter", "clutter"]
     rd_list, spec_list, meta_list, y_list = [], [], [], []
 
     print("Generating simulated photonic radar dataset...")

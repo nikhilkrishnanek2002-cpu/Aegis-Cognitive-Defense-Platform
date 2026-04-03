@@ -21,7 +21,6 @@ class TargetType(str, Enum):
     AIRCRAFT = "AIRCRAFT"
     BIRD = "BIRD"
     HELICOPTER = "HELICOPTER"
-    MISSILE = "MISSILE"
     CLUTTER = "CLUTTER"
     UNKNOWN = "UNKNOWN"
 

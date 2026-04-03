@@ -6,7 +6,6 @@ import { StatusBadge } from '../components/common/StatusBadge'
 import { useTriggerScan } from '../hooks/useRadarStream'
 import { useRadarStore } from '../store/radarStore'
 import { useThreatStore, selectEngagementLog } from '../store/threatStore'
-import { useMissileControl } from '../hooks/useMissileControl'
 
 export function RadarLive() {
   const { frame, isScanning, error } = useRadarStore()
@@ -23,7 +22,7 @@ export function RadarLive() {
     if (frame?.targets) {
       const mappedThreats = frame.targets.map(t => ({
           ...t,
-          type: t.threat_level === 'HIGH' ? 'missile' : (t.velocity > 50 ? 'aircraft' : 'drone'),
+          type: (t.velocity > 50 ? 'aircraft' : 'drone'),
           level: t.threat_level === 'HIGH' ? 'Critical' : (t.threat_level === 'MEDIUM' ? 'Medium' : 'Low'),
           status: 'Active',
           distance: t.y ? Math.round(Math.abs(t.y)) : 0, 
@@ -33,13 +32,11 @@ export function RadarLive() {
     }
   }, [frame, setThreats])
 
-  const { missiles, explosions, launchMissile } = useMissileControl()
   const neutralizedIds = neutralizedThreats.map((t) => t.id)
 
   const handleScan = async () => { await triggerScan() }
 
   const handleIntercept = (threat) => {
-    launchMissile(threat, 500, 500)
     launchInterceptor(threat.id)
   }
 

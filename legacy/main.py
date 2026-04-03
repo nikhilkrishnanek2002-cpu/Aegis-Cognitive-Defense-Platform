@@ -43,7 +43,7 @@ import cv2
 # ===============================
 os.makedirs("results", exist_ok=True)
 
-LABELS = ["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"]
+LABELS = ["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"]
 NUM_CLASSES = len(LABELS)
 SAMPLES_PER_CLASS = 100
 IMG_SIZE = 128

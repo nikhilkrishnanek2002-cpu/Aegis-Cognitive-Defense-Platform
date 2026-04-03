@@ -60,7 +60,7 @@ class ActionSpace:
     
     GAIN_LEVELS = [5, 15, 25, 35]      # dB
     DISTANCE_LEVELS = [100, 300, 500, 800]  # meters
-    TARGETS = ["Drone", "Aircraft", "Bird", "Helicopter", "Missile", "Clutter"]
+    TARGETS = ["Drone", "Aircraft", "Bird", "Helicopter", "Clutter"]
     
     def __init__(self):
         # Generate all action combinations

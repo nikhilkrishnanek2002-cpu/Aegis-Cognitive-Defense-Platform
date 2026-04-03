@@ -24,7 +24,6 @@ data:
       aircraft: 1.15
       bird: 0.85
       helicopter: 1.25
-      missile: 1.35
       clutter: 1.0
 
 training:
